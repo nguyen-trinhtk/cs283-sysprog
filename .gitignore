@@ -1,0 +1,47 @@
+# Common executables (students will have incremental .gitignore files in individual assignment directories
+# For example for the warmup the executable name will be wordcount, so that should be placed in a 
+# .gitignore file in the 0-Warmup directory
+
+# Python virtual environments
+.venv/
+venv/
+env/
+
+# Python cache files
+*.pyc
+__pycache__/
+*.pyo
+
+# C/C++ compiled files
+*.o
+*.out
+*.exe
+a.out
+
+
+
+
+# Editor temporary files
+*~
+*.swp
+*.swo
+.*.swp
+
+# macOS files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux/Unix files
+*.core
+
+# IDE files
+.vscode/
+.idea/
+*.iml
+
+# Test output
+*.log
+
+# Valgrind output
+vgcore.*
