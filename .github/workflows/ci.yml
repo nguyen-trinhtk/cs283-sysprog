@@ -3,8 +3,12 @@ name: Wordcount Tests
 on:
   push:
     branches: [ main ]
+    paths:
+      - '0-Warmup/**'
   pull_request:
     branches: [ main ]
+    paths:
+      - '0-Warmup/**'
 
 jobs:
   build-and-test:
