@@ -1,4 +1,4 @@
-name: C Project Tests
+name: Wordcount Tests
 
 on:
   push:
@@ -24,5 +24,9 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install pytest
+        run: pip install pytest
+
       - name: Run tests
-        run: pytest -v 0-Warmup
+        working-directory: 0-Warmup
+        run: pytest -v
