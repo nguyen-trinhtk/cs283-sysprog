@@ -191,21 +191,18 @@ int main(int argc, char *argv[]) {
     while (fgets(line_buffer, LINE_BUFFER_SZ * sizeof(line_buffer), fp) != NULL) {
         line_number++;
         found_match = str_match(line_buffer, pattern, case_insensitive);
+        if (invert_match) {
+            found_match = !found_match;
+        }
         if (found_match) {
             match_count++;
-            if (count_only || invert_match) {
+            if (count_only) {
                 continue;
             }
             else if (show_line_nums) {
                 printf("%d: ", line_number);
             }
             // print the line_buffer here;
-            printf("%s", line_buffer);
-        }
-        else if (invert_match) {
-            if (show_line_nums) {
-                printf("%d: ", line_number);
-            }
             printf("%s", line_buffer);
         }
     }
