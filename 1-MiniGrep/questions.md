@@ -22,16 +22,17 @@ Your program allocates a line buffer using `malloc()`. Explain what would happen
    - A program that runs once and exits?
    - A program that runs in a loop processing thousands of files?
 
-> _Your answer here_
+> Forgetting to call free() will results in a memory leak (occupying memory without actually using it). For a single-iteration program, this would not be that big of a problem since the OS will reclaim the memory, but for program with loops and processing many files, over time, the program will unnecessarily consuming a large amount of memory and may cause some unwanted behavior. 
 
 ## 4. Buffer Size Choice
 
 The starter code defines `LINE_BUFFER_SZ` as 256 bytes. What happens if a line in the input file is longer than 256 characters? How does `fgets()` handle this situation? (You may need to look up the documentation for `fgets()` to answer this.)
 
-> _Your answer here_
+> When the line in the input file is longer than 256 characters, fgets will read the first 255 (leaving space for the null terminator) and the rest of the line will be read in the next fgets (if called). 
 
 ## 5. Return Codes
 
 The program uses different exit codes (0, 1, 2, 3, 4) for different situations. Why is it useful for command-line utilities to return different codes instead of always returning 0 or 1? Give a practical example of how you might use these return codes in a shell script.
 
 > Using different exit codes can be really helpful in interpreting program's status and pinpoint errors during execution, so this is really convenient for monitoring/debuggint the code. 
+> In this minigrep specifically, return code 0 will implies success (pattern found), while 1 is pattern not found, but no error incorporated. Error about arguments is associated with exit code 2, while code 3 is for file opening errors and code 4 is for heap memory allocation errors.
