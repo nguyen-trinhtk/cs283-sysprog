@@ -1,7 +1,7 @@
 # Learning Documentation
 ## Understanding Phase
 1. What is Valgrind? What kinds of problems does it detect?
-> I've known that Valgrind is a tool use to check memory bugs, but nothing more. Hence, I used AI to educate me more about Valgrind and this is what I learned, summarized:
+> I've known that Valgrind is a tool use to check memory bugs, but I'm curious about it more. Hence, I used AI to educate me more about Valgrind and this is what I learned, summarized:
 > Valgrind is a programming tool that detects memory-related errors by running/monitoring a program, mainly for C/C++ programs. It usually identifies problems like memory leaks, use of uninitialized memory, invalid reads/writes, and incorrect memory management.
 
 
