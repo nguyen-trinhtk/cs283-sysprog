@@ -187,7 +187,7 @@ int main(int argc, char *argv[]) {
     //     print the appropriate output
     //   - Update match_count if needed
 
-    while (fgets(line_buffer, LINE_BUFFER_SZ * sizeof(line_buffer), fp) != NULL) {
+    while (fgets(line_buffer, LINE_BUFFER_SZ, fp) != NULL) {
         line_number++; // Increment line number
         found_match = str_match(line_buffer, pattern, case_insensitive); // Pattern matching
         
