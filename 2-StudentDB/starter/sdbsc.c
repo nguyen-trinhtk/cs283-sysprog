@@ -62,8 +62,19 @@ int open_db(char *dbFile, bool should_truncate)
  */
 int get_student(int fd, int id, student_t *s)
 {
-    // TODO
-    return NOT_IMPLEMENTED_YET;
+    off_t offset = id * STUDENT_RECORD_SIZE;
+    if (lseek(fd, offset, SEEK_SET) == -1) return ERR_DB_FILE;
+    
+    student_t student;
+    
+    ssize_t read_return_val = read(fd, &student, STUDENT_RECORD_SIZE);
+    if (read_return_val < 0) return ERR_DB_FILE; // Reading failed
+    if (read_return_val == 0) return SRCH_NOT_FOUND; // End of file
+    if (read_return_val != STUDENT_RECORD_SIZE) return ERR_DB_FILE; // Incomplete read
+    if (memcmp(&student, &EMPTY_STUDENT_RECORD, STUDENT_RECORD_SIZE) == 0 || student.id == DELETED_STUDENT_ID) return SRCH_NOT_FOUND; // Empty / deleted student
+
+    *s = student;
+    return NO_ERROR;
 }
 
 /*
@@ -93,9 +104,52 @@ int get_student(int fd, int id, student_t *s)
  */
 int add_student(int fd, int id, char *fname, char *lname, int gpa)
 {
-    // TODO
-    printf(M_NOT_IMPL);
-    return NOT_IMPLEMENTED_YET;
+    // Offset
+    off_t offset = id * STUDENT_RECORD_SIZE; 
+    // Seeking failed
+    if (lseek(fd, offset, SEEK_SET) == -1) {
+        printf(M_ERR_DB_READ);
+        return ERR_DB_FILE;
+    }
+
+    // Construct an imaginary student (which should be an empty student)
+    student_t imaginary_student_record; 
+    ssize_t read_return_val = read(fd, &imaginary_student_record, STUDENT_RECORD_SIZE);
+    // TODO: < 0
+    // TODO: == 0
+    if (read_return_val > 0 && read_return_val != STUDENT_RECORD_SIZE) {
+        // Handle partial reading
+        printf(M_ERR_DB_READ);
+        return ERR_DB_FILE;
+    }
+    
+    // Return error if student already exists
+    if (memcmp(&imaginary_student_record, &EMPTY_STUDENT_RECORD, STUDENT_RECORD_SIZE) != 0) {
+        printf(M_ERR_DB_ADD_DUP, id);
+        return ERR_DB_OP;
+    }
+
+    student_t student; 
+    student.id = id;
+    student.gpa = gpa;
+    strncpy(student.fname, fname, sizeof(student.fname) - 1);
+    strncpy(student.lname, lname, sizeof(student.lname) - 1);
+
+    // Seek again before write
+    if (lseek(fd, offset, SEEK_SET) == -1) {
+        printf(M_ERR_DB_READ);
+        return ERR_DB_FILE;
+    }
+
+    ssize_t write_return_val = write(fd, &student, STUDENT_RECORD_SIZE);
+
+    if (write_return_val != STUDENT_RECORD_SIZE) {
+        printf(M_ERR_DB_WRITE);
+        return ERR_DB_FILE;
+    }
+
+    printf(M_STD_ADDED, id);
+    return NO_ERROR;
 }
 
 /*
