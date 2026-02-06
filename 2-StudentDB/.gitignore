@@ -1,0 +1,8 @@
+#ignore the student database file for git commits
+student.db
+
+#ignore the executable
+sdbsc
+
+#ignore the pytest cache
+__pycache__/
