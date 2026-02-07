@@ -372,8 +372,10 @@ int print_db(int fd)
  */
 void print_student(student_t *s)
 {
+    // Check if student is null / empty
     if (s == NULL || s->id == 0) printf(M_ERR_STD_PRINT);
     else {
+        // Print student
         printf(STUDENT_PRINT_HDR_STRING, "ID", "FIRST NAME", "LAST_NAME", "GPA");
         float calculated_gpa_from_s = s->gpa / 100.0;
         printf(STUDENT_PRINT_FMT_STRING, s->id, s->fname, s->lname, calculated_gpa_from_s);
@@ -430,9 +432,73 @@ void print_student(student_t *s)
  */
 int compress_db(int fd)
 {
-    // TODO
-    printf(M_NOT_IMPL);
-    return fd;
+    // lseek to beginning
+    if (lseek(fd, 0, SEEK_SET) == -1) {
+        printf(M_ERR_DB_READ);
+        return ERR_DB_FILE;
+    }
+    int read_return_val = STUDENT_RECORD_SIZE;
+    student_t student;
+
+    // Create temporary db
+    int temp_fd = open_db(TMP_DB_FILE, true);
+    if (temp_fd < 0) {
+        printf(M_ERR_DB_OPEN);
+        return ERR_DB_FILE;
+    }
+
+    // lseek write file to beginning
+    if (lseek(temp_fd, 0, SEEK_SET) == -1) {
+        printf(M_ERR_DB_READ);
+        return ERR_DB_FILE;
+    }
+
+    // Read until EOF
+    while (read_return_val != 0) {
+        read_return_val = read(fd, &student, STUDENT_RECORD_SIZE);
+        
+        if (read_return_val < 0) { // Reading error
+            printf(M_ERR_DB_READ);
+            return ERR_DB_FILE;
+        } else if (read_return_val == 0) break; // EOF reached
+        
+        // Skip empty / deleted student
+        else if (memcmp(&student, &EMPTY_STUDENT_RECORD, STUDENT_RECORD_SIZE) == 0 || student.id == DELETED_STUDENT_ID) {
+            // lseek to next student slot
+            if (lseek(temp_fd, STUDENT_RECORD_SIZE, SEEK_CUR) == -1) {
+                printf(M_ERR_DB_READ);
+                return ERR_DB_FILE;
+            }
+            continue; // skip this iteration
+        }
+        
+        // Write to temp file
+        int write_return_val = write(temp_fd, &student, STUDENT_RECORD_SIZE);
+        if (write_return_val != STUDENT_RECORD_SIZE) {
+            printf(M_ERR_DB_WRITE);
+            return ERR_DB_FILE;
+        }
+    }
+
+    // Close db files
+    close(temp_fd);
+    close(fd);
+
+    // Rename temp file to db
+    if (rename(TMP_DB_FILE, DB_FILE) == -1) {
+        printf(M_ERR_DB_CREATE);
+        return ERR_DB_FILE;
+    }
+
+    // Open the compressed db file and return its fd
+    int compressed_fd = open_db(DB_FILE, false);
+    if (compressed_fd < 0) {
+        printf(M_ERR_DB_OPEN);
+        return ERR_DB_FILE;
+    }
+
+    printf(M_DB_COMPRESSED_OK);
+    return compressed_fd;
 }
 
 /*
