@@ -113,10 +113,12 @@ int add_student(int fd, int id, char *fname, char *lname, int gpa)
     }
 
     // Construct an imaginary student (which should be an empty student)
-    student_t imaginary_student_record; 
+    student_t imaginary_student_record = EMPTY_STUDENT_RECORD; 
     ssize_t read_return_val = read(fd, &imaginary_student_record, STUDENT_RECORD_SIZE);
-    // TODO: < 0
-    // TODO: == 0
+    if (read_return_val < 0) {
+        printf(M_ERR_DB_READ);
+        return(ERR_DB_FILE);
+    }
     if (read_return_val > 0 && read_return_val != STUDENT_RECORD_SIZE) {
         // Handle partial reading
         printf(M_ERR_DB_READ);
@@ -134,6 +136,8 @@ int add_student(int fd, int id, char *fname, char *lname, int gpa)
     student.gpa = gpa;
     strncpy(student.fname, fname, sizeof(student.fname) - 1);
     strncpy(student.lname, lname, sizeof(student.lname) - 1);
+    student.fname[sizeof(student.fname) - 1] = '\0';
+    student.lname[sizeof(student.lname) - 1] = '\0';
 
     // Seek again before write
     if (lseek(fd, offset, SEEK_SET) == -1) {
@@ -177,8 +181,33 @@ int add_student(int fd, int id, char *fname, char *lname, int gpa)
 int del_student(int fd, int id)
 {
     // TODO
-    printf(M_NOT_IMPL);
-    return NOT_IMPLEMENTED_YET;
+    student_t student; 
+    int get_return_val = get_student(fd, id, &student);
+    if (get_return_val == ERR_DB_FILE) {
+        printf(M_ERR_DB_READ);
+        return ERR_DB_FILE;
+    } else if (get_return_val == SRCH_NOT_FOUND) {
+        printf(M_STD_NOT_FND_MSG, id);
+        return ERR_DB_OP;
+    }
+
+    off_t offset = id * STUDENT_RECORD_SIZE;
+
+    // Seek before write
+    if (lseek(fd, offset, SEEK_SET) == -1) {
+        printf(M_ERR_DB_READ);
+        return ERR_DB_FILE;
+    }
+
+    ssize_t write_return_val = write(fd, &EMPTY_STUDENT_RECORD, STUDENT_RECORD_SIZE);
+
+    if (write_return_val != STUDENT_RECORD_SIZE) {
+        printf(M_ERR_DB_WRITE);
+        return ERR_DB_FILE;
+    }
+
+    printf(M_STD_DEL_MSG, id);
+    return NO_ERROR;
 }
 
 /*
@@ -207,9 +236,35 @@ int del_student(int fd, int id)
  */
 int count_db_records(int fd)
 {
-    // TODO
-    printf(M_NOT_IMPL);
-    return NOT_IMPLEMENTED_YET;
+    // lseek to beginning
+    if (lseek(fd, 0, SEEK_SET) == -1) {
+        printf(M_ERR_DB_READ);
+        return ERR_DB_FILE;
+    }
+    int read_return_val = STUDENT_RECORD_SIZE;
+    student_t student;
+    int count = 0;
+
+    // Read until EOF
+    while (read_return_val != 0) {
+        read_return_val = read(fd, &student, STUDENT_RECORD_SIZE);
+
+        if (read_return_val < 0) { // Reading error
+            printf(M_ERR_DB_READ);
+            return ERR_DB_FILE;
+        } else if (read_return_val == 0) break; // EOF reached
+
+        count++; // Increment
+        // Check for empty / deleted student
+        if (memcmp(&student, &EMPTY_STUDENT_RECORD, STUDENT_RECORD_SIZE) == 0 || student.id == DELETED_STUDENT_ID) {
+            count--; // reverse 
+        }
+    }
+
+    // Output
+    if (count == 0) printf(M_DB_EMPTY);
+    else printf(M_DB_RECORD_CNT, count);
+    return count;
 }
 
 /*
@@ -247,9 +302,44 @@ int count_db_records(int fd)
  */
 int print_db(int fd)
 {
-    // TODO
-    printf(M_NOT_IMPL);
-    return NOT_IMPLEMENTED_YET;
+    // lseek to beginning
+    if (lseek(fd, 0, SEEK_SET) == -1) {
+        printf(M_ERR_DB_READ);
+        return ERR_DB_FILE;
+    }
+    int read_return_val = STUDENT_RECORD_SIZE;
+    student_t student;
+    int header_waiting = 1; // (boolean) int whether header is printed or not
+
+    // Read until EOF
+    while (read_return_val != 0) {
+        read_return_val = read(fd, &student, STUDENT_RECORD_SIZE);
+        
+        if (read_return_val < 0) { // Reading error
+            printf(M_ERR_DB_READ);
+            return ERR_DB_FILE;
+        } else if (read_return_val == 0) break; // EOF reached
+        
+        // Skip empty / deleted student
+        else if (memcmp(&student, &EMPTY_STUDENT_RECORD, STUDENT_RECORD_SIZE) == 0 || student.id == DELETED_STUDENT_ID) {
+            continue;
+        }
+
+        // Print header before actual first row
+        if (header_waiting == 1) {
+            printf(STUDENT_PRINT_HDR_STRING, "ID", "FIRST_NAME", "LAST_NAME", "GPA");
+            header_waiting = 0;
+        }
+
+        float calculated_gpa_from_student = (student.gpa) / 100.0; // calculate actual GPA
+        
+        // Print student record
+        printf(STUDENT_PRINT_FMT_STRING, student.id, student.fname, student.lname, calculated_gpa_from_student);
+    }
+
+    // Output
+    if (header_waiting) printf(M_DB_EMPTY); // Empty / deleted records only
+    return NO_ERROR;
 }
 
 /*
@@ -282,8 +372,12 @@ int print_db(int fd)
  */
 void print_student(student_t *s)
 {
-    // TODO
-    printf(M_NOT_IMPL);
+    if (s == NULL || s->id == 0) printf(M_ERR_STD_PRINT);
+    else {
+        printf(STUDENT_PRINT_HDR_STRING, "ID", "FIRST NAME", "LAST_NAME", "GPA");
+        float calculated_gpa_from_s = s->gpa / 100.0;
+        printf(STUDENT_PRINT_FMT_STRING, s->id, s->fname, s->lname, calculated_gpa_from_s);
+    }
 }
 
 /*
