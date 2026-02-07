@@ -63,16 +63,25 @@ int open_db(char *dbFile, bool should_truncate)
 int get_student(int fd, int id, student_t *s)
 {
     off_t offset = id * STUDENT_RECORD_SIZE;
-    if (lseek(fd, offset, SEEK_SET) == -1) return ERR_DB_FILE;
+    if (lseek(fd, offset, SEEK_SET) == -1) {
+        return ERR_DB_FILE;
+    }
     
     student_t student;
     
     ssize_t read_return_val = read(fd, &student, STUDENT_RECORD_SIZE);
-    if (read_return_val < 0) return ERR_DB_FILE; // Reading failed
-    if (read_return_val == 0) return SRCH_NOT_FOUND; // End of file
-    if (read_return_val != STUDENT_RECORD_SIZE) return ERR_DB_FILE; // Incomplete read
-    if (memcmp(&student, &EMPTY_STUDENT_RECORD, STUDENT_RECORD_SIZE) == 0 || student.id == DELETED_STUDENT_ID) return SRCH_NOT_FOUND; // Empty / deleted student
-
+    if (read_return_val < 0) {
+        return ERR_DB_FILE; // Reading failed
+    }
+    if (read_return_val == 0) {
+        return SRCH_NOT_FOUND; // End of file
+    }
+    if (read_return_val != STUDENT_RECORD_SIZE) {
+        return ERR_DB_FILE; // Incomplete read
+    }
+    if (memcmp(&student, &EMPTY_STUDENT_RECORD, STUDENT_RECORD_SIZE) == 0 || student.id == DELETED_STUDENT_ID) {
+        return SRCH_NOT_FOUND; // Empty / deleted student
+    }
     *s = student;
     return NO_ERROR;
 }
@@ -113,8 +122,8 @@ int add_student(int fd, int id, char *fname, char *lname, int gpa)
     }
 
     // Construct an imaginary student (which should be an empty student)
-    student_t imaginary_student_record = EMPTY_STUDENT_RECORD; 
-    ssize_t read_return_val = read(fd, &imaginary_student_record, STUDENT_RECORD_SIZE);
+    student_t existing = EMPTY_STUDENT_RECORD; 
+    ssize_t read_return_val = read(fd, &existing, STUDENT_RECORD_SIZE);
     if (read_return_val < 0) {
         printf(M_ERR_DB_READ);
         return(ERR_DB_FILE);
@@ -126,7 +135,7 @@ int add_student(int fd, int id, char *fname, char *lname, int gpa)
     }
     
     // Return error if student already exists
-    if (memcmp(&imaginary_student_record, &EMPTY_STUDENT_RECORD, STUDENT_RECORD_SIZE) != 0) {
+    if (memcmp(&existing, &EMPTY_STUDENT_RECORD, STUDENT_RECORD_SIZE) != 0) {
         printf(M_ERR_DB_ADD_DUP, id);
         return ERR_DB_OP;
     }
@@ -139,7 +148,7 @@ int add_student(int fd, int id, char *fname, char *lname, int gpa)
     student.fname[sizeof(student.fname) - 1] = '\0';
     student.lname[sizeof(student.lname) - 1] = '\0';
 
-    // Seek again before write
+    // Seek back before write (after read validation)
     if (lseek(fd, offset, SEEK_SET) == -1) {
         printf(M_ERR_DB_READ);
         return ERR_DB_FILE;
