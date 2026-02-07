@@ -61,7 +61,7 @@ Use AI tools to research and discover answers to these questions:
 I'm currently use Ubuntu VM via OrbStack on mac. I install `strace` via `sudo apt install strace`. 
 
 3. **What does strace show you?** What information is in the output?
-// TODO
+`strace` shows the syscalls used along with its associated parameters and return value. 
 
 4. **How do you run strace on a program?** What's the basic syntax?
 The basic syntax is `strace ./program [any arguments]`.
@@ -81,6 +81,7 @@ I will run `strace ./sdbsc -a 1 john doe 350` for this program.
 We can filter strace output with `strace -e trace=[some-file-related-syscalls]`, for example: `strace -e trace=open,lseek,read,write,close ./sdbsc -a 1 john doe 350`. 
 
 8. **What system calls should you see?** For your database: open, lseek, read, write, close
+I do see all of the mentioned syscalls, along with some mmap munmap etc. 
 Each of them should look something like: 
 - `open("student.db", O_RDWR|O_CREAT, …)`
 - `lseek(3, offset, locptr) = offset + locptr`
@@ -190,7 +191,11 @@ Run: `strace -e trace=open,lseek,read,write,close ./sdbsc -g 1`
 - Identify the read to get student data
 - Verify the offset and size are correct
 
+
 **Analysis (explanation are in comments):**
+> [!NOTE]
+> I don't think the program supports -g flag, so I used -f.
+
 ```shell
 (venv) nguyentrinh@ubuntu:/mnt/mac/Users/nguyentrinh/Documents/WINTER26/cs283/cs283-wi26-nguyen-trinhtk/2-studentdb/starter$ strace -e trace=open,lseek,read,write,close ./sdbsc 
 -f 1
@@ -284,11 +289,14 @@ du -h student.db
 
 Based on your investigation, explain:
 - What is a sparse file?
-> A sparse file is a file that has many unoccupied disk spaces, but still virtually takes up a large space in memory. 
+> A sparse file is a file that has many unoccupied disk spaces, but still takes up a large logical file size. 
+
 - How does lseek() create holes?
 > They skip bytes, leaving them unwritten/unoccupied. 
+
 - Why is this efficient for our database?
 > This is efficient because we cannot overwrite records with records with different ID, and in fact it only takes up physical disk space as much as the actual number of records. 
+
 - What would happen without sparse file support?
 > Without sparse file support, empty records would eventually take up spaces, making it really memory expensive. 
 
