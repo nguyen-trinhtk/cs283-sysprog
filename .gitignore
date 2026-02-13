@@ -45,3 +45,7 @@ a.out
 
 # Valgrind output
 vgcore.*
+
+# Local files
+assignments/*
+assignments
