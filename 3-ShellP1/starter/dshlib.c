@@ -25,6 +25,7 @@ int alloc_cmd_buff(cmd_buff_t *cmd_buff)
     if (cmd_buff->_cmd_buffer == NULL) {
         return ERR_MEMORY;
     }
+
     cmd_buff->argc = 0;
     for (int i = 0; i < CMD_ARGV_MAX; i++) {
         cmd_buff->argv[i] = NULL;
@@ -111,9 +112,30 @@ int free_cmd_list(command_list_t *cmd_lst)
  */
 int build_cmd_buff(char *cmd_line, cmd_buff_t *cmd_buff)
 {
-    // TODO: Implement this function
-    // For now, return an error to indicate it's not implemented
-    return ERR_MEMORY;
+    while (*cmd_line && isspace(*cmd_line)) cmd_line++;
+    strcpy(cmd_buff->_cmd_buffer, cmd_line);
+
+    cmd_buff->argc = 0;
+    char *p = cmd_buff->_cmd_buffer;
+    while (*p && cmd_buff->argc < CMD_ARGV_MAX - 1) {
+        while (*p && isspace(*p)) p++;
+        if (!*p) break;
+        char *start;
+        if (*p == '"' || *p == '\'') {
+            char quote = *p++;
+            start = p;
+            while (*p && *p != quote) p++;
+            if (*p == quote) *p++ = '\0';
+            cmd_buff->argv[cmd_buff->argc++] = start;
+        } else {
+            start = p;
+            while (*p && !isspace(*p)) p++;
+            if (*p) *p++ = '\0';
+            cmd_buff->argv[cmd_buff->argc++] = start;
+        }
+    }
+    cmd_buff->argv[cmd_buff->argc] = NULL;
+    return OK;
 }
 
 /**
@@ -184,20 +206,47 @@ int build_cmd_buff(char *cmd_line, cmd_buff_t *cmd_buff)
  */
 int build_cmd_list(char *cmd_line, command_list_t *clist)
 {
-    // TODO: Implement this function
-    // This is the main function you need to implement for Part 1
-    
-    // Suggested approach:
-    // 1. Check if cmd_line is empty or all whitespace
-    // 2. Count pipe characters to ensure <= CMD_MAX-1
-    // 3. Use strtok to split by PIPE_CHAR
-    // 4. For each segment:
-    //    - Allocate cmd_buff
-    //    - Call build_cmd_buff
-    //    - Store in clist->commands[]
-    // 5. Set clist->num
-    
-    return ERR_MEMORY;  // Placeholder - replace with your implementation
+    clist->num = 0;
+
+    // 1. Trim leading whitespace only for check
+    char *trim_ptr = cmd_line;
+    while (*trim_ptr && isspace(*trim_ptr)) trim_ptr++;
+    if (*trim_ptr == '\0') return WARN_NO_CMDS;
+
+    // 2. Make a modifiable copy of the full input (not advanced pointer)
+    char line_copy[SH_CMD_MAX];
+    strncpy(line_copy, cmd_line, SH_CMD_MAX);
+    line_copy[SH_CMD_MAX-1] = '\0';
+
+    // 3. First pass: split by pipe, save pointers
+    char *segments[CMD_MAX];
+    int num_segments = 0;
+    char *token = strtok(line_copy, PIPE_STRING);
+    while (token && num_segments < CMD_MAX) {
+        // Trim leading whitespace
+        while (*token && isspace(*token)) token++;
+        // Trim trailing whitespace
+        char *end = token + strlen(token) - 1;
+        while (end > token && isspace(*end)) {
+            *end = '\0';
+            end--;
+        }
+        if (*token != '\0') {
+            segments[num_segments++] = token;
+        }
+        token = strtok(NULL, PIPE_STRING);
+    }
+    if (token != NULL) return ERR_TOO_MANY_COMMANDS;
+    if (num_segments == 0) return WARN_NO_CMDS;
+
+    // 4. Second pass: parse each segment
+    for (int i = 0; i < num_segments; i++) {
+        if (alloc_cmd_buff(&clist->commands[i]) != OK) return ERR_MEMORY;
+        int rc = build_cmd_buff(segments[i], &clist->commands[i]);
+        if (rc != OK) return rc;
+    }
+    clist->num = num_segments;
+    return OK;
 }
 
 //===================================================================
@@ -358,9 +407,62 @@ Built_In_Cmds exec_built_in_cmd(cmd_buff_t *cmd)
  */
 int exec_local_cmd_loop()
 {
-    // TODO: Implement this function
-    // See detailed comments above for guidance
+    char cmd_line[SH_CMD_MAX];
+    command_list_t clist;
+    int rc;
     
+    while (1) {
+        printf("%s", SH_PROMPT);
+        if(fgets(cmd_line, SH_CMD_MAX, stdin) == NULL) {
+            printf("\n");
+            break;
+        }
+
+        // Remove trailing new line
+        cmd_line[strcspn(cmd_line, "\n")] = '\0';
+
+        // Check for exit command
+        if (strcmp(cmd_line, EXIT_CMD) == 0) {
+            printf("exiting...\n");
+            break;
+        }
+
+        // Parse the command line
+        rc = build_cmd_list(cmd_line, &clist);
+
+        // Handle return codes and print output
+        if (rc == WARN_NO_CMDS) {
+            printf(CMD_WARN_NO_CMD);
+            continue;
+        } else if (rc == ERR_TOO_MANY_COMMANDS) {
+            printf(CMD_ERR_PIPE_LIMIT, CMD_MAX);
+            continue;
+        } else if (rc == ERR_MEMORY) {
+            // Memory allocation error
+            continue;
+        }
+
+            // Print output
+            printf(CMD_OK_HEADER, clist.num);
+            for (int i = 0; i < clist.num; i++) {
+                printf("<%d> %s", i+1, clist.commands[i].argv[0]);
+                if (clist.commands[i].argc > 1) {
+                    printf(" [");
+                    for (int j = 1; j < clist.commands[i].argc; j++) {
+                        printf("%s", clist.commands[i].argv[j]);
+                        if (j < clist.commands[i].argc - 1) {
+                            printf(" ");
+                        }
+                    }
+                    printf("]");
+                }
+                printf("\n");
+            }
+        // Free memory
+        if (rc == OK) {
+            free_cmd_list(&clist);
+        }
+    }
     return OK;
 }
 
