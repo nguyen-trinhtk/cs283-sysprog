@@ -1,5 +1,6 @@
 # Shell Fundamentals Investigation
 
+
 **Assignment Component:** Required (15 points)  
 **Difficulty:** Conceptual Research  
 **Skills:** Shell Understanding, AI-Assisted Learning, Technical Research, Markdown Writing
