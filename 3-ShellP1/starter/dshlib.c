@@ -112,28 +112,39 @@ int free_cmd_list(command_list_t *cmd_lst)
  */
 int build_cmd_buff(char *cmd_line, cmd_buff_t *cmd_buff)
 {
+    // Skip leading spaces
     while (*cmd_line && isspace(*cmd_line)) cmd_line++;
+    
+    // Copy to the buffer
     strcpy(cmd_buff->_cmd_buffer, cmd_line);
 
+    // Count and parse args
     cmd_buff->argc = 0;
     char *p = cmd_buff->_cmd_buffer;
     while (*p && cmd_buff->argc < CMD_ARGV_MAX - 1) {
+        // Skip spaces in an arg
         while (*p && isspace(*p)) p++;
+        
+        // No args found
         if (!*p) break;
+
         char *start;
         if (*p == '"' || *p == '\'') {
+            // Handle quoted args
             char quote = *p++;
             start = p;
             while (*p && *p != quote) p++;
             if (*p == quote) *p++ = '\0';
             cmd_buff->argv[cmd_buff->argc++] = start;
         } else {
+            // Handle unquoted args
             start = p;
             while (*p && !isspace(*p)) p++;
             if (*p) *p++ = '\0';
             cmd_buff->argv[cmd_buff->argc++] = start;
         }
     }
+    // Null-terminate argv
     cmd_buff->argv[cmd_buff->argc] = NULL;
     return OK;
 }
@@ -208,17 +219,17 @@ int build_cmd_list(char *cmd_line, command_list_t *clist)
 {
     clist->num = 0;
 
-    // 1. Trim leading whitespace only for check
+    // Trim leading spaces and check if empty
     char *trim_ptr = cmd_line;
     while (*trim_ptr && isspace(*trim_ptr)) trim_ptr++;
     if (*trim_ptr == '\0') return WARN_NO_CMDS;
 
-    // 2. Make a modifiable copy of the full input (not advanced pointer)
+    // Make a copy of cmd_line to modify with strtok
     char line_copy[SH_CMD_MAX];
     strncpy(line_copy, cmd_line, SH_CMD_MAX);
     line_copy[SH_CMD_MAX-1] = '\0';
 
-    // 3. First pass: split by pipe, save pointers
+    // First loop: split by pipe
     char *segments[CMD_MAX];
     int num_segments = 0;
     char *token = strtok(line_copy, PIPE_STRING);
@@ -239,12 +250,14 @@ int build_cmd_list(char *cmd_line, command_list_t *clist)
     if (token != NULL) return ERR_TOO_MANY_COMMANDS;
     if (num_segments == 0) return WARN_NO_CMDS;
 
-    // 4. Second pass: parse each segment
+    // Second loop: parse each segment
     for (int i = 0; i < num_segments; i++) {
         if (alloc_cmd_buff(&clist->commands[i]) != OK) return ERR_MEMORY;
         int rc = build_cmd_buff(segments[i], &clist->commands[i]);
         if (rc != OK) return rc;
     }
+
+    // Set number of cmds
     clist->num = num_segments;
     return OK;
 }
@@ -411,8 +424,53 @@ int exec_local_cmd_loop()
     command_list_t clist;
     int rc;
     
+    // Main loop
+    // Drexel dragon ASCII art
+    static const char *dragon_lines[] = {
+        "                                                                        @%%%%                       ",
+        "                                                                     %%%%%%                         ",
+        "                                                                    %%%%%%                          ",
+        "                                                                 % %%%%%%%           @              ",
+        "                                                                %%%%%%%%%%        %%%%%%%           ",
+        "                                       %%%%%%%  %%%%@         %%%%%%%%%%%%@    %%%%%%  @%%%%        ",
+        "                                  %%%%%%%%%%%%%%%%%%%%%%      %%%%%%%%%%%%%%%%%%%%%%%%%%%%          ",
+        "                                %%%%%%%%%%%%%%%%%%%%%%%%%%   %%%%%%%%%%%% %%%%%%%%%%%%%%%           ",
+        "                               %%%%%%%%%%%%%%%%%%%%%%%%%%%%% %%%%%%%%%%%%%%%%%%%     %%%            ",
+        "                             %%%%%%%%%%%%%%%%%%%%%%%%%%%%@ @%%%%%%%%%%%%%%%%%%        %%            ",
+        "                            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% %%%%%%%%%%%%%%%%%%%%%%                ",
+        "                            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%              ",
+        "                            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%@%%%%%%@              ",
+        "      %%%%%%%%@           %%%%%%%%%%%%%%%%        %%%%%%%%%%%%%%%%%%%%%%%%%%      %%                ",
+        "    %%%%%%%%%%%%%         %%@%%%%%%%%%%%%           %%%%%%%%%%% %%%%%%%%%%%%      @%                ",
+        "  %%%%%%%%%%   %%%        %%%%%%%%%%%%%%            %%%%%%%%%%%%%%%%%%%%%%%%                        ",
+        " %%%%%%%%%       %         %%%%%%%%%%%%%             %%%%%%%%%%%%@%%%%%%%%%%%                       ",
+        "%%%%%%%%%@                % %%%%%%%%%%%%%            @%%%%%%%%%%%%%%%%%%%%%%%%%                     ",
+        "%%%%%%%%@                 %%@%%%%%%%%%%%%            @%%%%%%%%%%%%%%%%%%%%%%%%%%%%                  ",
+        "%%%%%%%@                   %%%%%%%%%%%%%%%           %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%              ",
+        "%%%%%%%%%%                  %%%%%%%%%%%%%%%          %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%      %%%%  ",
+        "%%%%%%%%%@                   @%%%%%%%%%%%%%%         %%%%%%%%%%%%@ %%%% %%%%%%%%%%%%%%%%%   %%%%%%%%",
+        "%%%%%%%%%%                  %%%%%%%%%%%%%%%%%        %%%%%%%%%%%%%      %%%%%%%%%%%%%%%%%% %%%%%%%%%",
+        "%%%%%%%%%@%%@                %%%%%%%%%%%%%%%%@       %%%%%%%%%%%%%%     %%%%%%%%%%%%%%%%%%%%%%%%  %%",
+        " %%%%%%%%%%                  % %%%%%%%%%%%%%%@        %%%%%%%%%%%%%%   %%%%%%%%%%%%%%%%%%%%%%%%%% %%",
+        "  %%%%%%%%%%%%  @           %%%%%%%%%%%%%%%%%%        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%  %%% ",
+        "   %%%%%%%%%%%%% %%  %  %@ %%%%%%%%%%%%%%%%%%          %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%    %%% ",
+        "    %%%%%%%%%%%%%%%%%% %%%%%%%%%%%%%%%%%%%%%%           @%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%    %%%%%%% ",
+        "     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%              %%%%%%%%%%%%%%%%%%%%%%%%%%%%        %%%   ",
+        "      @%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%                  %%%%%%%%%%%%%%%%%%%%%%%%%               ",
+        "        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%                      %%%%%%%%%%%%%%%%%%%  %%%%%%%          ",
+        "           %%%%%%%%%%%%%%%%%%%%%%%%%%                           %%%%%%%%%%%%%%%  @%%%%%%%%%         ",
+        "              %%%%%%%%%%%%%%%%%%%%           @%@%                  @%%%%%%%%%%%%%%%%%%   %%%        ",
+        "                  %%%%%%%%%%%%%%%        %%%%%%%%%%                    %%%%%%%%%%%%%%%    %         ",
+        "                %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%                      %%%%%%%%%%%%%%            ",
+        "                %%%%%%%%%%%%%%%%%%%%%%%%%%  %%%% %%%                      %%%%%%%%%%  %%%@          ",
+        "                     %%%%%%%%%%%%%%%%%%% %%%%%% %%                          %%%%%%%%%%%%%@          ",
+        "                                                                                 %%%%%%%@       "
+    };
+    const int num_lines = sizeof(dragon_lines) / sizeof(dragon_lines[0]);
+
     while (1) {
         printf("%s", SH_PROMPT);
+        // Read input
         if(fgets(cmd_line, SH_CMD_MAX, stdin) == NULL) {
             printf("\n");
             break;
@@ -442,22 +500,31 @@ int exec_local_cmd_loop()
             continue;
         }
 
-            // Print output
-            printf(CMD_OK_HEADER, clist.num);
-            for (int i = 0; i < clist.num; i++) {
-                printf("<%d> %s", i+1, clist.commands[i].argv[0]);
-                if (clist.commands[i].argc > 1) {
-                    printf(" [");
-                    for (int j = 1; j < clist.commands[i].argc; j++) {
-                        printf("%s", clist.commands[i].argv[j]);
-                        if (j < clist.commands[i].argc - 1) {
-                            printf(" ");
-                        }
-                    }
-                    printf("]");
-                }
-                printf("\n");
+        // Check for sole dragon command
+        if (clist.num == 1 && clist.commands[0].argc > 0 && strcmp(clist.commands[0].argv[0], "dragon") == 0) {
+            for (int i = 0; i < num_lines; i++) {
+                printf("%s\n", dragon_lines[i]);
             }
+            free_cmd_list(&clist);
+            continue;
+        }
+
+        // Print output
+        printf(CMD_OK_HEADER, clist.num);
+        for (int i = 0; i < clist.num; i++) {
+            printf("<%d> %s", i+1, clist.commands[i].argv[0]);
+            if (clist.commands[i].argc > 1) {
+                printf(" [");
+                for (int j = 1; j < clist.commands[i].argc; j++) {
+                    printf("%s", clist.commands[i].argv[j]);
+                    if (j < clist.commands[i].argc - 1) {
+                        printf(" ");
+                    }
+                }
+                printf("]");
+            }
+            printf("\n");
+        }
         // Free memory
         if (rc == OK) {
             free_cmd_list(&clist);
