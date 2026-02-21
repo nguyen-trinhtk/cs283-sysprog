@@ -10,6 +10,9 @@
 
 #include "dshlib.h"
 
+
+int last_rc = 0;
+
 //===================================================================
 // HELPER FUNCTIONS - Memory Management (PROVIDED)
 //===================================================================
@@ -242,7 +245,7 @@ Built_In_Cmds exec_built_in_cmd(cmd_buff_t *cmd)
         case BI_CMD_RC:
             // Extra credit - print last return code
             // TODO: Implement if doing extra credit
-            printf("rc not implemented yet!\n");
+            printf("%d\n", last_rc);
             return BI_EXECUTED;
             
         default:
@@ -478,6 +481,7 @@ int exec_local_cmd_loop()
         
         // 6. Check if built-in
         Built_In_Cmds bi = exec_built_in_cmd(&cmd);
+        last_rc = bi;
         if (bi == BI_CMD_EXIT) {
             printf("exiting...\n");
             break;
@@ -487,7 +491,7 @@ int exec_local_cmd_loop()
         }
         
         // 7. Execute as external command
-        exec_cmd(&cmd);
+        last_rc = exec_cmd(&cmd);
     }
     
     free_cmd_buff(&cmd);
