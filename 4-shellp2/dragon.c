@@ -1,6 +1,7 @@
 #include <stdio.h>
+#include "dragon.h"
 
-// EXTRA CREDIT - print the drexel dragon from the readme.md
 extern void print_dragon(){
-  // TODO implement 
+  fwrite(dragon_txt, 1, dragon_txt_len, stdout);
+  printf("\n");
 }
