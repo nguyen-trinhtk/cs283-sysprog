@@ -1,0 +1,131 @@
+1033  execve("./dsh", ["./dsh"], 0xffffce349c98 /* 22 vars */) = 0
+1033  brk(NULL)                         = 0xaaaafbea6000
+1033  mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xffffa612b000
+1033  faccessat(AT_FDCWD, "/etc/ld.so.preload", R_OK) = -1 ENOENT (No such file or directory)
+1033  openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+1033  fstat(3, {st_mode=S_IFREG|0644, st_size=15603, ...}) = 0
+1033  mmap(NULL, 15603, PROT_READ, MAP_PRIVATE, 3, 0) = 0xffffa6127000
+1033  close(3)                          = 0
+1033  openat(AT_FDCWD, "/lib/aarch64-linux-gnu/libc.so.6", O_RDONLY|O_CLOEXEC) = 3
+1033  read(3, "\177ELF\2\1\1\3\0\0\0\0\0\0\0\0\3\0\267\0\1\0\0\0\360\206\2\0\0\0\0\0"..., 832) = 832
+1033  fstat(3, {st_mode=S_IFREG|0755, st_size=1722920, ...}) = 0
+1033  mmap(NULL, 1892240, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_DENYWRITE, -1, 0) = 0xffffa5f27000
+1033  mmap(0xffffa5f30000, 1826704, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0) = 0xffffa5f30000
+1033  munmap(0xffffa5f27000, 36864)     = 0
+1033  munmap(0xffffa60ee000, 28560)     = 0
+1033  mprotect(0xffffa60c9000, 81920, PROT_NONE) = 0
+1033  mmap(0xffffa60dd000, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x19d000) = 0xffffa60dd000
+1033  mmap(0xffffa60e2000, 49040, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0xffffa60e2000
+1033  close(3)                          = 0
+1033  set_tid_address(0xffffa612bfb0)   = 1033
+1033  set_robust_list(0xffffa612bfc0, 24) = 0
+1033  rseq(0xffffa612c600, 0x20, 0, 0xd428bc00) = 0
+1033  mprotect(0xffffa60dd000, 12288, PROT_READ) = 0
+1033  mprotect(0xaaaac641f000, 4096, PROT_READ) = 0
+1033  mprotect(0xffffa6133000, 8192, PROT_READ) = 0
+1033  prlimit64(0, RLIMIT_STACK, NULL, {rlim_cur=8192*1024, rlim_max=RLIM64_INFINITY}) = 0
+1033  munmap(0xffffa6127000, 15603)     = 0
+1033  getrandom("\x03\x88\x31\xca\x4c\xc7\x6a\xdb", 8, GRND_NONBLOCK) = 8
+1033  brk(NULL)                         = 0xaaaafbea6000
+1033  brk(0xaaaafbec7000)               = 0xaaaafbec7000
+1033  fstat(1, {st_mode=S_IFCHR|0620, st_rdev=makedev(0x88, 0x1), ...}) = 0
+1033  fstat(0, {st_mode=S_IFCHR|0620, st_rdev=makedev(0x88, 0x1), ...}) = 0
+1033  write(1, "dsh3> ", 6)             = 6
+1033  read(0, "ls\n", 1024)             = 3
+1033  clone(child_stack=NULL, flags=CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD, child_tidptr=0xffffa612bfb0) = 1034
+1033  wait4(1034,  <unfinished ...>
+1034  set_robust_list(0xffffa612bfc0, 24) = 0
+1034  execve("/opt/orbstack-guest/bin-hiprio/ls", ["ls"], 0xffffc399d088 /* 22 vars */) = -1 ENOENT (No such file or directory)
+1034  execve("/usr/local/sbin/ls", ["ls"], 0xffffc399d088 /* 22 vars */) = -1 ENOENT (No such file or directory)
+1034  execve("/usr/local/bin/ls", ["ls"], 0xffffc399d088 /* 22 vars */) = -1 ENOENT (No such file or directory)
+1034  execve("/usr/sbin/ls", ["ls"], 0xffffc399d088 /* 22 vars */) = -1 ENOENT (No such file or directory)
+1034  execve("/usr/bin/ls", ["ls"], 0xffffc399d088 /* 22 vars */) = 0
+1034  brk(NULL)                         = 0xaaaad00cd000
+1034  mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xfffface18000
+1034  faccessat(AT_FDCWD, "/etc/ld.so.preload", R_OK) = -1 ENOENT (No such file or directory)
+1034  openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+1034  fstat(3, {st_mode=S_IFREG|0644, st_size=15603, ...}) = 0
+1034  mmap(NULL, 15603, PROT_READ, MAP_PRIVATE, 3, 0) = 0xfffface14000
+1034  close(3)                          = 0
+1034  openat(AT_FDCWD, "/lib/aarch64-linux-gnu/libselinux.so.1", O_RDONLY|O_CLOEXEC) = 3
+1034  read(3, "\177ELF\2\1\1\0\0\0\0\0\0\0\0\0\3\0\267\0\1\0\0\0\0\0\0\0\0\0\0\0"..., 832) = 832
+1034  fstat(3, {st_mode=S_IFREG|0644, st_size=198800, ...}) = 0
+1034  mmap(NULL, 337472, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_DENYWRITE, -1, 0) = 0xffffacd8f000
+1034  mmap(0xffffacd90000, 271936, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0) = 0xffffacd90000
+1034  munmap(0xffffacd8f000, 4096)      = 0
+1034  munmap(0xffffacdd3000, 58944)     = 0
+1034  mprotect(0xffffacdbc000, 77824, PROT_NONE) = 0
+1034  mmap(0xffffacdcf000, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x2f000) = 0xffffacdcf000
+1034  mmap(0xffffacdd1000, 5696, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0xffffacdd1000
+1034  close(3)                          = 0
+1034  openat(AT_FDCWD, "/lib/aarch64-linux-gnu/libc.so.6", O_RDONLY|O_CLOEXEC) = 3
+1034  read(3, "\177ELF\2\1\1\3\0\0\0\0\0\0\0\0\3\0\267\0\1\0\0\0\360\206\2\0\0\0\0\0"..., 832) = 832
+1034  fstat(3, {st_mode=S_IFREG|0755, st_size=1722920, ...}) = 0
+1034  mmap(NULL, 1892240, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_DENYWRITE, -1, 0) = 0xffffacbc2000
+1034  mmap(0xffffacbd0000, 1826704, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0) = 0xffffacbd0000
+1034  munmap(0xffffacbc2000, 57344)     = 0
+1034  munmap(0xffffacd8e000, 8080)      = 0
+1034  mprotect(0xffffacd69000, 81920, PROT_NONE) = 0
+1034  mmap(0xffffacd7d000, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x19d000) = 0xffffacd7d000
+1034  mmap(0xffffacd82000, 49040, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0xffffacd82000
+1034  close(3)                          = 0
+1034  openat(AT_FDCWD, "/lib/aarch64-linux-gnu/libpcre2-8.so.0", O_RDONLY|O_CLOEXEC) = 3
+1034  read(3, "\177ELF\2\1\1\0\0\0\0\0\0\0\0\0\3\0\267\0\1\0\0\0\0\0\0\0\0\0\0\0"..., 832) = 832
+1034  fstat(3, {st_mode=S_IFREG|0644, st_size=592328, ...}) = 0
+1034  mmap(NULL, 721536, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_DENYWRITE, -1, 0) = 0xffffacb1f000
+1034  mmap(0xffffacb20000, 656000, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0) = 0xffffacb20000
+1034  munmap(0xffffacb1f000, 4096)      = 0
+1034  munmap(0xffffacbc1000, 57984)     = 0
+1034  mprotect(0xffffacba8000, 94208, PROT_NONE) = 0
+1034  mmap(0xffffacbbf000, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x8f000) = 0xffffacbbf000
+1034  close(3)                          = 0
+1034  mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xfffface12000
+1034  set_tid_address(0xfffface120f0)   = 1034
+1034  set_robust_list(0xfffface12100, 24) = 0
+1034  rseq(0xfffface12740, 0x20, 0, 0xd428bc00) = 0
+1034  mprotect(0xffffacd7d000, 12288, PROT_READ) = 0
+1034  mprotect(0xffffacbbf000, 4096, PROT_READ) = 0
+1034  mprotect(0xffffacdcf000, 4096, PROT_READ) = 0
+1034  mprotect(0xaaaab3f1e000, 8192, PROT_READ) = 0
+1034  mprotect(0xfffface20000, 8192, PROT_READ) = 0
+1034  prlimit64(0, RLIMIT_STACK, NULL, {rlim_cur=8192*1024, rlim_max=RLIM64_INFINITY}) = 0
+1034  munmap(0xfffface14000, 15603)     = 0
+1034  statfs("/sys/fs/selinux", 0xffffe9763160) = -1 ENOENT (No such file or directory)
+1034  statfs("/selinux", 0xffffe9763160) = -1 ENOENT (No such file or directory)
+1034  getrandom("\x4c\x95\x6a\x06\x9e\xc9\xdf\xf7", 8, GRND_NONBLOCK) = 8
+1034  brk(NULL)                         = 0xaaaad00cd000
+1034  brk(0xaaaad00ee000)               = 0xaaaad00ee000
+1034  openat(AT_FDCWD, "/proc/filesystems", O_RDONLY|O_CLOEXEC) = 3
+1034  fstat(3, {st_mode=S_IFREG|0444, st_size=0, ...}) = 0
+1034  read(3, "nodev\tsysfs\nnodev\ttmpfs\nnodev\tbd"..., 1024) = 478
+1034  read(3, "", 1024)                 = 0
+1034  close(3)                          = 0
+1034  faccessat(AT_FDCWD, "/etc/selinux/config", F_OK) = -1 ENOENT (No such file or directory)
+1034  openat(AT_FDCWD, "/usr/lib/locale/locale-archive", O_RDONLY|O_CLOEXEC) = 3
+1034  fstat(3, {st_mode=S_IFREG|0644, st_size=5719296, ...}) = 0
+1034  mmap(NULL, 5719296, PROT_READ, MAP_PRIVATE, 3, 0) = 0xffffac400000
+1034  close(3)                          = 0
+1034  ioctl(1, TCGETS, {c_iflag=ICRNL|IXON|IXANY|IMAXBEL|IUTF8, c_oflag=NL0|CR0|TAB0|BS0|VT0|FF0|OPOST|ONLCR, c_cflag=B38400|CS8|CREAD, c_lflag=ISIG|ICANON|ECHO|ECHOE|ECHOK|IEXTEN|ECHOCTL|ECHOKE|PENDIN, ...}) = 0
+1034  ioctl(1, TIOCGWINSZ, {ws_row=22, ws_col=100, ws_xpixel=0, ws_ypixel=0}) = 0
+1034  openat(AT_FDCWD, ".", O_RDONLY|O_NONBLOCK|O_CLOEXEC|O_DIRECTORY) = 3
+1034  fstat(3, {st_mode=S_IFDIR|0755, st_size=704, ...}) = 0
+1034  getdents64(3, 0xaaaad00d36a0 /* 22 entries */, 32768) = 736
+1034  getdents64(3, 0xaaaad00d36a0 /* 0 entries */, 32768) = 0
+1034  close(3)                          = 0
+1034  fstat(1, {st_mode=S_IFCHR|0620, st_rdev=makedev(0x88, 0x1), ...}) = 0
+1034  write(1, " dragon.c    dshlib.c\t       mak"..., 86) = 86
+1034  write(1, " dragon.h    dshlib.h\t       __p"..., 73) = 73
+1034  write(1, " dsh\t     fork-exec-1.png   ques"..., 56) = 56
+1034  write(1, " dsh_cli.c   fork-exec-2.png   r"..., 56) = 56
+1034  close(1)                          = 0
+1034  close(2)                          = 0
+1034  exit_group(0)                     = ?
+1034  +++ exited with 0 +++
+1033  <... wait4 resumed>[{WIFEXITED(s) && WEXITSTATUS(s) == 0}], 0, NULL) = 1034
+1033  --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=1034, si_uid=501, si_status=0, si_utime=0, si_stime=0} ---
+1033  write(1, "dsh3> ", 6)             = 6
+1033  read(0, "exit\n", 1024)           = 5
+1033  write(1, "exiting...\n", 11)      = 11
+1033  write(1, "cmd loop returned 0\n", 20) = 20
+1033  exit_group(0)                     = ?
+1033  +++ exited with 0 +++
