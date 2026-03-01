@@ -17,97 +17,170 @@ At first it's a bit of a challenge to understand which fd each process should cl
 ### 2. Basic Pipe Analysis (3 points)
 
 Trace a simple two-command pipeline. For each part, provide strace output and analysis:
-
 #### A. Two-Command Pipe: `ls | cat`
 
-Run your shell with strace:
-```bash
-strace -f -e trace=pipe,dup2,close,fork,execve ./dsh
-dsh3> ls | cat
-dsh3> exit
+**Strace output:**
+```
+3872022 pipe2([3, 4], 0)                = 0
+3872023 dup2(4, 1)                      = 1
+3872024 dup2(3, 0)                      = 0
+3872022 close(3)                        = 0
+3872022 close(4)                        = 0
+3872023 close(3)                        = 0
+3872023 close(4)                        = 0
+3872024 close(3)                        = 0
+3872024 close(4)                        = 0
+3872023 execve("/usr/bin/ls", ["ls"], ...)  = 0
+3872024 execve("/usr/bin/cat", ["cat"], ...) = 0
 ```
 
-**Provide:**
-- The relevant strace output (pipe, dup2, close calls)
-- Identify the pipe() call - what fds does it create?
-- Identify dup2() calls in each child
-- Identify close() calls - which pipes are closed where?
-- Verify both children are created
-
-**Example analysis:**
+**Analysis:**
 ```
 Two-command pipeline: ls | cat
 
-Parent Process:
-1. pipe([3, 4]) = 0
+Parent Process (PID 3872022):
+1. pipe2([3, 4], 0) = 0
    - Creates pipe with read end fd=3, write end fd=4
-   
-2. fork() = 1001
-   - Creates first child (ls)
-   
-3. fork() = 1002
-   - Creates second child (cat)
 
-Child 1 (PID 1001) - ls command:
-4. dup2(4, 1) = 1
+2. fork() → Child 1 (PID 3872023) - ls command
+3. fork() → Child 2 (PID 3872024) - cat command
+
+4. close(3) = 0
+   - Parent closes read end of pipe
+5. close(4) = 0
+   - Parent closes write end of pipe
+   - Parent holds no pipe fds; waits for children
+
+Child 1 (PID 3872023) - ls command:
+6. dup2(4, 1) = 1
    - Redirects stdout to pipe write end
-   - stdout now writes to fd=4 (pipe)
-   
-5. close(3) = 0
+   - stdout now writes into the pipe
+7. close(3) = 0
    - Closes unused read end
-   
-6. close(4) = 0
-   - Closes original write end (dup still exists)
-   
-7. execve("/bin/ls", ["ls"], ...) = 0
-   - Runs ls, output goes to pipe
+8. close(4) = 0
+   - Closes original write end (dup2 copy on fd=1 remains)
+9. execve("/usr/bin/ls", ["ls"], ...) = 0
+   - Runs ls; output flows into pipe via fd=1
 
-Child 2 (PID 1002) - cat command:
-8. dup2(3, 0) = 0
-   - Redirects stdin from pipe read end
-   - stdin now reads from fd=3 (pipe)
-   
-9. close(3) = 0
-   - Closes original read end (dup still exists)
-   
-10. close(4) = 0
+Child 2 (PID 3872024) - cat command:
+10. dup2(3, 0) = 0
+    - Redirects stdin from pipe read end
+    - stdin now reads from the pipe
+11. close(3) = 0
+    - Closes original read end (dup2 copy on fd=0 remains)
+12. close(4) = 0
     - Closes unused write end
-    
-11. execve("/bin/cat", ["cat"], ...) = 0
-    - Runs cat, input comes from pipe
+13. execve("/usr/bin/cat", ["cat"], ...) = 0
+    - Runs cat; reads ls output from pipe via fd=0
 
-Parent Process:
-12. close(3) = 0
-    - Parent closes read end
-    
-13. close(4) = 0
-    - Parent closes write end
-    
-Data flow: ls writes to fd=4 → cat reads from fd=3
+Data flow: ls writes to fd=1 (pipe write end) → cat reads from fd=0 (pipe read end)
 ```
 
 #### B. Three-Command Pipe: `ls | grep txt | wc -l`
 
-**Provide:**
-- How many pipe() calls? (Should be 2 for 3 commands)
-- What file descriptor numbers are created?
-- How does the middle command (grep) handle both stdin and stdout?
-- Verify all three children are created
+**Answer:**
+- There were 2 pipe calls.
+- fds created: 3, 4, 5, 6
+- `grep` takes the stdin from `ls`'s stdout and pushes stdout to `wc`'s stdin.
+- All three children are created!
+
+**Strace output:**
+```
+3872080 pipe2([3, 4], 0)                = 0
+3872080 pipe2([5, 6], 0)                = 0
+3872081 dup2(4, 1)                      = 1
+3872081 close(3)                        = 0
+3872081 close(4)                        = 0
+3872081 close(5)                        = 0
+3872081 close(6)                        = 0
+3872082 dup2(3, 0)                      = 0
+3872082 dup2(6, 1)                      = 1
+3872082 close(3)                        = 0
+3872082 close(4)                        = 0
+3872082 close(5)                        = 0
+3872082 close(6)                        = 0
+3872083 dup2(5, 0)                      = 0
+3872083 close(3)                        = 0
+3872083 close(4)                        = 0
+3872083 close(5)                        = 0
+3872083 close(6)                        = 0
+3872080 close(3)                        = 0
+3872080 close(4)                        = 0
+3872080 close(5)                        = 0
+3872080 close(6)                        = 0
+3872081 execve("/usr/bin/ls", ["ls"], ...)       = 0
+3872082 execve("/usr/bin/grep", ["grep", "txt"], ...) = 0
+3872083 execve("/usr/bin/wc", ["wc", "-l"], ...) = 0
+```
+
+**Analysis:**
+```
+Three-command pipeline: ls | grep txt | wc -l
+
+Parent Process (PID 3872080):
+1. pipe2([3, 4], 0) = 0
+   - Creates pipe 1 with read end fd=3, write end fd=4
+   - This connects ls → grep
+
+2. pipe2([5, 6], 0) = 0
+   - Creates pipe 2 with read end fd=5, write end fd=6
+   - This connects grep → wc
+
+3. fork() → Child 1 (PID 3872081) - ls
+4. fork() → Child 2 (PID 3872082) - grep
+5. fork() → Child 3 (PID 3872083) - wc
+
+Parent closes all pipe ends:
+6. close(3), close(4), close(5), close(6)
+   - Parent holds no pipe fds; waits for all children
+
+Child 1 (PID 3872081) - ls:
+7. dup2(4, 1) = 1
+   - Redirects stdout to pipe 1 write end
+   - ls output flows into pipe 1
+8. close(3) = 0  - unused pipe 1 read end
+9. close(4) = 0  - original write end (dup2 copy on fd=1 remains)
+10. close(5) = 0 - unused pipe 2 read end
+11. close(6) = 0 - unused pipe 2 write end
+12. execve("/usr/bin/ls", ["ls"], ...) = 0
+
+Child 2 (PID 3872082) - grep txt:
+13. dup2(3, 0) = 0
+    - Redirects stdin from pipe 1 read end
+    - grep reads ls output from pipe 1
+14. dup2(6, 1) = 1
+    - Redirects stdout to pipe 2 write end
+    - grep output flows into pipe 2
+15. close(3) = 0 - original pipe 1 read end (dup2 copy on fd=0 remains)
+16. close(4) = 0 - unused pipe 1 write end
+17. close(5) = 0 - unused pipe 2 read end
+18. close(6) = 0 - original pipe 2 write end (dup2 copy on fd=1 remains)
+19. execve("/usr/bin/grep", ["grep", "txt"], ...) = 0
+
+Child 3 (PID 3872083) - wc -l:
+20. dup2(5, 0) = 0
+    - Redirects stdin from pipe 2 read end
+    - wc reads grep output from pipe 2
+21. close(3) = 0 - unused pipe 1 read end
+22. close(4) = 0 - unused pipe 1 write end
+23. close(5) = 0 - original pipe 2 read end (dup2 copy on fd=0 remains)
+24. close(6) = 0 - unused pipe 2 write end
+25. execve("/usr/bin/wc", ["wc", "-l"], ...) = 0
+
+Data flow: ls → fd=4 (pipe 1) → fd=3 → grep → fd=6 (pipe 2) → fd=5 → wc -l
+```
 
 #### C. File Descriptor Leak Demo
 
-**Experiment:** Temporarily comment out ALL close() calls in your code, then trace:
+**Experiment:** Temporarily comment out ALL close() calls in your code, then trace
 
-```bash
-strace -f -e trace=pipe,dup2,close ./dsh
-dsh3> ls | cat
-[process hangs?]
-```
+**Answer:**
 
-**Provide:**
-- What happened? Did it hang?
-- Why did it hang (or not)?
-- What does strace show about open file descriptors?
+The process hangs. `cat` blocks indefinitely waiting for input that never ends.
+
+The parent never closes its copy of the pipe's write end (`fd=4`) before the children run. So even after ls finishes and exits, the parent still holds `fd=4` open, so the pipe never got to `EOF` and `cat` waits forever.
+
+Strace shows parent's `close(3)` and `close(4)` happening too late — after both children have already done execve. The pipe write end has two holders: `ls` and the parent. `ls` exits and closes its copy, but the parent's copy keeps the pipe alive, so cat never sees `EOF`.
 
 ### 3. File Descriptor Management (3 points)
 
