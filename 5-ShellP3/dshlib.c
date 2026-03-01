@@ -501,8 +501,8 @@ int execute_pipeline(command_list_t *clist)
             // Close ALL pipe file descriptors
             for (int j = 0; j < num_pipes; j++)
             {
-                close(pipe_fds[j][0]);
-                close(pipe_fds[j][1]);
+                // close(pipe_fds[j][0]);
+                // close(pipe_fds[j][1]);
             }
             // Execute command
             execvp(clist->commands[i].argv[0], clist->commands[i].argv);
@@ -518,8 +518,8 @@ int execute_pipeline(command_list_t *clist)
     // Step 3: Parent closes all pipes
     for (int i = 0; i < num_pipes; i++)
     {
-        close(pipe_fds[i][0]);
-        close(pipe_fds[i][1]);
+        // close(pipe_fds[i][0]);
+        // close(pipe_fds[i][1]);
     }
 
     // Step 4: Wait for all children
@@ -685,5 +685,4 @@ int exec_local_cmd_loop()
         free_cmd_list(&clist);
     }
 
-    return OK;
-}
+    r
