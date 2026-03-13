@@ -642,4 +642,6 @@ Built_In_Cmds rsh_built_in_cmd(cmd_buff_t *cmd)
         chdir(cmd->argv[1]);
         return BI_EXECUTED;
     default:
-        return BI_NOT_B
+        return BI_NOT_BI;
+    }
+}
