@@ -9,14 +9,13 @@
 #include <sys/un.h>
 #include <fcntl.h>
 
-//INCLUDES for extra credit
-//#include <signal.h>
-//#include <pthread.h>
+// INCLUDES for extra credit
+// #include <signal.h>
+// #include <pthread.h>
 //-------------------------
 
 #include "dshlib.h"
 #include "rshlib.h"
-
 
 /*
  * start_server(ifaces, port, is_threaded)
@@ -24,40 +23,43 @@
  *              where the server will bind.  In almost all cases it will
  *              be the default "0.0.0.0" which binds to all interfaces.
  *              note the constant RDSH_DEF_SVR_INTFACE in rshlib.h
- * 
- *      port:   The port the server will use.  Note the constant 
+ *
+ *      port:   The port the server will use.  Note the constant
  *              RDSH_DEF_PORT which is 1234 in rshlib.h.  If you are using
  *              tux you may need to change this to your own default, or even
  *              better use the command line override -s implemented in dsh_cli.c
- *              For example ./dsh -s 0.0.0.0:5678 where 5678 is the new port  
- * 
+ *              For example ./dsh -s 0.0.0.0:5678 where 5678 is the new port
+ *
  *      is_threded:  Used for extra credit to indicate the server should implement
- *                   per thread connections for clients  
- * 
- *      This function basically runs the server by: 
+ *                   per thread connections for clients
+ *
+ *      This function basically runs the server by:
  *          1. Booting up the server
  *          2. Processing client requests until the client requests the
  *             server to stop by running the `stop-server` command
- *          3. Stopping the server. 
- * 
+ *          3. Stopping the server.
+ *
  *      This function is fully implemented for you and should not require
- *      any changes for basic functionality.  
- * 
+ *      any changes for basic functionality.
+ *
  *      IF YOU IMPLEMENT THE MULTI-THREADED SERVER FOR EXTRA CREDIT YOU NEED
- *      TO DO SOMETHING WITH THE is_threaded ARGUMENT HOWEVER.  
+ *      TO DO SOMETHING WITH THE is_threaded ARGUMENT HOWEVER.
  */
-int start_server(char *ifaces, int port, int is_threaded){
+int start_server(char *ifaces, int port, int is_threaded)
+{
     int svr_socket;
     int rc;
+    (void)is_threaded; // suppress unused-parameter warning (used for EC only)
 
     //
-    //TODO:  If you are implementing the extra credit, please add logic
+    // TODO:  If you are implementing the extra credit, please add logic
     //       to keep track of is_threaded to handle this feature
     //
 
     svr_socket = boot_server(ifaces, port);
-    if (svr_socket < 0){
-        int err_code = svr_socket;  //server socket will carry error code
+    if (svr_socket < 0)
+    {
+        int err_code = svr_socket; // server socket will carry error code
         return err_code;
     }
 
@@ -65,127 +67,173 @@ int start_server(char *ifaces, int port, int is_threaded){
 
     stop_server(svr_socket);
 
-
     return rc;
 }
 
 /*
  * stop_server(svr_socket)
  *      svr_socket: The socket that was created in the boot_server()
- *                  function. 
- * 
+ *                  function.
+ *
  *      This function simply returns the value of close() when closing
- *      the socket.  
+ *      the socket.
  */
-int stop_server(int svr_socket){
+int stop_server(int svr_socket)
+{
     return close(svr_socket);
 }
 
 /*
  * boot_server(ifaces, port)
  *      ifaces & port:  see start_server for description.  They are passed
- *                      as is to this function.   
- * 
+ *                      as is to this function.
+ *
  *      This function "boots" the rsh server.  It is responsible for all
- *      socket operations prior to accepting client connections.  Specifically: 
- * 
- *      1. Create the server socket using the socket() function. 
+ *      socket operations prior to accepting client connections.  Specifically:
+ *
+ *      1. Create the server socket using the socket() function.
  *      2. Calling bind to "bind" the server to the interface and port
  *      3. Calling listen to get the server ready to listen for connections.
- * 
- *      after creating the socket and prior to calling bind you might want to 
+ *
+ *      after creating the socket and prior to calling bind you might want to
  *      include the following code:
- * 
+ *
  *      int enable=1;
  *      setsockopt(svr_socket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int));
- * 
+ *
  *      when doing development you often run into issues where you hold onto
  *      the port and then need to wait for linux to detect this issue and free
  *      the port up.  The code above tells linux to force allowing this process
  *      to use the specified port making your life a lot easier.
- * 
+ *
  *  Returns:
- * 
+ *
  *      server_socket:  Sockets are just file descriptors, if this function is
- *                      successful, it returns the server socket descriptor, 
+ *                      successful, it returns the server socket descriptor,
  *                      which is just an integer.
- * 
+ *
  *      ERR_RDSH_COMMUNICATION:  This error code is returned if the socket(),
- *                               bind(), or listen() call fails. 
- * 
+ *                               bind(), or listen() call fails.
+ *
  */
-int boot_server(char *ifaces, int port){
+int boot_server(char *ifaces, int port)
+{
     int svr_socket;
     int ret;
-    
+
     struct sockaddr_in addr;
 
     // TODO set up the socket - this is very similar to the demo code
-
-    /*
-     * Prepare for accepting connections. The backlog size is set
-     * to 20. So while one request is being processed other requests
-     * can be waiting.
-     */
+    // 1. Create socket: socket(AF_INET, SOCK_STREAM, 0)
+    svr_socket = socket(AF_INET, SOCK_STREAM, 0);
+    if (svr_socket < 0)
+    {
+        perror("socket");
+        return ERR_RDSH_COMMUNICATION;
+    }
+    // 2. Set SO_REUSEADDR option (helps with development)
+    int enable = 1;
+    ret = setsockopt(svr_socket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int));
+    if (ret == -1)
+    {
+        perror("setsockopt");
+        return ERR_RDSH_COMMUNICATION;
+    }
+    // 3. Setup address structure with ifaces and port
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    ret = inet_pton(AF_INET, ifaces, &addr.sin_addr);
+    if (ret <= 0)
+    {
+        perror("inet_pton");
+        close(svr_socket);
+        return ERR_RDSH_COMMUNICATION;
+    }
+    // 4. Bind: bind(svr_sock, &addr, sizeof(addr))
+    ret = bind(svr_socket, (struct sockaddr *)&addr, sizeof(addr));
+    if (ret < 0)
+    {
+        perror("bind");
+        close(svr_socket);
+        return ERR_RDSH_COMMUNICATION;
+    }
+    // 5. Listen: listen(svr_sock, 20)
+    listen(svr_socket, 20);
     ret = listen(svr_socket, 20);
-    if (ret == -1) {
+    if (ret == -1)
+    {
         perror("listen");
         return ERR_RDSH_COMMUNICATION;
     }
-
+    // 6. Return svr_sock
     return svr_socket;
 }
 
 /*
  * process_cli_requests(svr_socket)
  *      svr_socket:  The server socket that was obtained from boot_server()
- *   
+ *
  *  This function handles managing client connections.  It does this using
  *  the following logic
- * 
+ *
  *      1.  Starts a while(1) loop:
- *  
- *          a. Calls accept() to wait for a client connection. Recall that 
+ *
+ *          a. Calls accept() to wait for a client connection. Recall that
  *             the accept() function returns another socket specifically
- *             bound to a client connection. 
+ *             bound to a client connection.
  *          b. Calls exec_client_requests() to handle executing commands
  *             sent by the client. It will use the socket returned from
  *             accept().
  *          c. Loops back to the top (step 2) to accept connecting another
- *             client.  
- * 
+ *             client.
+ *
  *          note that the exec_client_requests() return code should be
  *          negative if the client requested the server to stop by sending
  *          the `stop-server` command.  If this is the case step 2b breaks
- *          out of the while(1) loop. 
- * 
- *      2.  After we exit the loop, we need to cleanup.  Dont forget to 
+ *          out of the while(1) loop.
+ *
+ *      2.  After we exit the loop, we need to cleanup.  Dont forget to
  *          free the buffer you allocated in step #1.  Then call stop_server()
- *          to close the server socket. 
- * 
+ *          to close the server socket.
+ *
  *  Returns:
- * 
+ *
  *      OK_EXIT:  When the client sends the `stop-server` command this function
- *                should return OK_EXIT. 
- * 
+ *                should return OK_EXIT.
+ *
  *      ERR_RDSH_COMMUNICATION:  This error code terminates the loop and is
- *                returned from this function in the case of the accept() 
- *                function failing. 
- * 
+ *                returned from this function in the case of the accept()
+ *                function failing.
+ *
  *      OTHERS:   See exec_client_requests() for return codes.  Note that positive
  *                values will keep the loop running to accept additional client
- *                connections, and negative values terminate the server. 
- * 
+ *                connections, and negative values terminate the server.
+ *
  */
-int process_cli_requests(int svr_socket){
-    int     cli_socket;
-    int     rc = OK;    
+int process_cli_requests(int svr_socket)
+{
+    int cli_socket;
+    int rc = OK;
 
-    while(1){
-        // TODO use the accept syscall to create cli_socket 
-        // and then exec_client_requests(cli_socket)
+    while (1)
+    {
+        // 1. Accept connection: cli_sock = accept(svr_sock, NULL, NULL)
+        cli_socket = accept(svr_socket, NULL, NULL);
+        if (cli_socket < 0)
+        {
+            perror("accept");
+            return ERR_RDSH_COMMUNICATION;
+        }
+        // 2. Call exec_client_requests(cli_sock)
+        rc = exec_client_requests(cli_socket);
+        // 3. If return code is negative (stop-server), break
+        if (rc < 0)
+        {
+            break;
+        }
+        // 4. Otherwise loop to accept next client
     }
-
     stop_server(cli_socket);
     return rc;
 }
@@ -193,73 +241,121 @@ int process_cli_requests(int svr_socket){
 /*
  * exec_client_requests(cli_socket)
  *      cli_socket:  The server-side socket that is connected to the client
- *   
+ *
  *  This function handles accepting remote client commands. The function will
  *  loop and continue to accept and execute client commands.  There are 2 ways
  *  that this ongoing loop accepting client commands ends:
- * 
+ *
  *      1.  When the client executes the `exit` command, this function returns
  *          to process_cli_requests() so that we can accept another client
- *          connection. 
+ *          connection.
  *      2.  When the client executes the `stop-server` command this function
  *          returns to process_cli_requests() with a return code of OK_EXIT
- *          indicating that the server should stop. 
- * 
+ *          indicating that the server should stop.
+ *
  *  Note that this function largely follows the implementation of the
- *  exec_local_cmd_loop() function that you implemented in the last 
+ *  exec_local_cmd_loop() function that you implemented in the last
  *  shell program deliverable. The main difference is that the command will
  *  arrive over the recv() socket call rather than reading a string from the
- *  keyboard. 
- * 
+ *  keyboard.
+ *
  *  This function also must send the EOF character after a command is
  *  successfully executed to let the client know that the output from the
- *  command it sent is finished.  Use the send_message_eof() to accomplish 
- *  this. 
- * 
- *  Of final note, this function must allocate a buffer for storage to 
+ *  command it sent is finished.  Use the send_message_eof() to accomplish
+ *  this.
+ *
+ *  Of final note, this function must allocate a buffer for storage to
  *  store the data received by the client. For example:
  *     io_buff = malloc(RDSH_COMM_BUFF_SZ);
  *  And since it is allocating storage, it must also properly clean it up
  *  prior to exiting.
- * 
+ *
  *  Returns:
- * 
+ *
  *      OK:       The client sent the `exit` command.  Get ready to connect
- *                another client. 
+ *                another client.
  *      OK_EXIT:  The client sent `stop-server` command to terminate the server
- * 
+ *
  *      ERR_RDSH_COMMUNICATION:  A catch all for any socket() related send
- *                or receive errors. 
+ *                or receive errors.
  */
-int exec_client_requests(int cli_socket) {
+int exec_client_requests(int cli_socket)
+{
     int io_size;
     command_list_t cmd_list;
     int rc;
-    int cmd_rc;
-    int last_rc;
     char *io_buff;
 
     io_buff = malloc(RDSH_COMM_BUFF_SZ);
-    if (io_buff == NULL){
+    if (io_buff == NULL)
+    {
         return ERR_RDSH_SERVER;
     }
 
-    while(1) {
-        // TODO use recv() syscall to get input
+    while (1)
+    {
+        // 2. Receive command: recv(cli_sock, cmd_buf, size, 0)
+        io_size = recv(cli_socket, io_buff, RDSH_COMM_BUFF_SZ - 1, 0);
+        // 3. If recv returns <= 0, client disconnected, break
+        if (io_size <= 0)
+        {
+            break;
+        }
+        io_buff[io_size] = '\0';
+        // Strip trailing newline left by fgets on the client side
+        io_buff[strcspn(io_buff, "\n")] = '\0';
 
-        // TODO build up a cmd_list
+        // 4. Parse command into command_list_t
+        rc = build_cmd_list(io_buff, &cmd_list);
+        if (rc == WARN_NO_CMDS)
+        {
+            send_message_string(cli_socket, CMD_WARN_NO_CMD);
+            continue;
+        }
+        else if (rc != OK)
+        {
+            send_message_string(cli_socket, CMD_ERR_PIPE_LIMIT);
+            continue;
+        }
 
-        // TODO rsh_execute_pipeline to run your cmd_list
+        // 5. Check for built-ins:
+        Built_In_Cmds bi = rsh_built_in_cmd(&cmd_list.commands[0]);
+        // - "exit" → send EOF, close client, return OK
+        if (bi == BI_CMD_EXIT)
+        {
+            send_message_eof(cli_socket);
+            close(cli_socket);
+            free(io_buff);
+            return OK;
+        }
+        // - "stop-server" → send EOF, return OK_EXIT (negative)
+        if (bi == BI_CMD_STOP_SVR)
+        {
+            send_message_eof(cli_socket);
+            close(cli_socket);
+            free(io_buff);
+            return OK_EXIT;
+        }
+        // - "cd" → chdir() already executed by rsh_built_in_cmd; send EOF
+        if (bi == BI_EXECUTED)
+        {
+            send_message_eof(cli_socket);
+            free_cmd_list(&cmd_list);
+            continue;
+        }
 
-        // TODO send appropriate respones with send_message_string
-        // - error constants for failures
-        // - buffer contents from execute commands
-        //  - etc.
+        // 6. If not built-in:
+        // - Call rsh_execute_pipeline(cli_sock, &clist)
+        rsh_execute_pipeline(cli_socket, &cmd_list);
+        // - Send EOF marker
+        send_message_eof(cli_socket);
 
-        // TODO send_message_eof when done
+        // 7. Free buffers and loop
+        free_cmd_list(&cmd_list);
     }
 
-    return WARN_RDSH_NOT_IMPL;
+    free(io_buff);
+    return OK;
 }
 
 /*
@@ -267,129 +363,179 @@ int exec_client_requests(int cli_socket) {
  *      cli_socket:  The server-side socket that is connected to the client
 
  *  Sends the EOF character to the client to indicate that the server is
- *  finished executing the command that it sent. 
- * 
+ *  finished executing the command that it sent.
+ *
  *  Returns:
- * 
- *      OK:  The EOF character was sent successfully. 
- * 
+ *
+ *      OK:  The EOF character was sent successfully.
+ *
  *      ERR_RDSH_COMMUNICATION:  The send() socket call returned an error or if
- *           we were unable to send the EOF character. 
+ *           we were unable to send the EOF character.
  */
-int send_message_eof(int cli_socket){
+int send_message_eof(int cli_socket)
+{
     int send_len = (int)sizeof(RDSH_EOF_CHAR);
     int sent_len;
     sent_len = send(cli_socket, &RDSH_EOF_CHAR, send_len, 0);
 
-    if (sent_len != send_len){
+    if (sent_len != send_len)
+    {
         return ERR_RDSH_COMMUNICATION;
     }
     return OK;
 }
 
-
 /*
  * send_message_string(cli_socket, char *buff)
  *      cli_socket:  The server-side socket that is connected to the client
  *      buff:        A C string (aka null terminated) of a message we want
- *                   to send to the client. 
- *   
+ *                   to send to the client.
+ *
  *  Sends a message to the client.  Note this command executes both a send()
  *  to send the message and a send_message_eof() to send the EOF character to
- *  the client to indicate command execution terminated. 
- * 
+ *  the client to indicate command execution terminated.
+ *
  *  Returns:
- * 
- *      OK:  The message in buff followed by the EOF character was 
- *           sent successfully. 
- * 
+ *
+ *      OK:  The message in buff followed by the EOF character was
+ *           sent successfully.
+ *
  *      ERR_RDSH_COMMUNICATION:  The send() socket call returned an error or if
- *           we were unable to send the message followed by the EOF character. 
+ *           we were unable to send the message followed by the EOF character.
  */
-int send_message_string(int cli_socket, char *buff){
-    //TODO implement writing to cli_socket with send()
-    return WARN_RDSH_NOT_IMPL;
+int send_message_string(int cli_socket, char *buff)
+{
+    int send_len = strlen(buff);
+    int sent_len = send(cli_socket, buff, send_len, 0);
+    if (sent_len != send_len)
+    {
+        return ERR_RDSH_COMMUNICATION;
+    }
+    return send_message_eof(cli_socket);
 }
-
 
 /*
  * rsh_execute_pipeline(int cli_sock, command_list_t *clist)
  *      cli_sock:    The server-side socket that is connected to the client
  *      clist:       The command_list_t structure that we implemented in
- *                   the last shell. 
- *   
+ *                   the last shell.
+ *
  *  This function executes the command pipeline.  It should basically be a
- *  replica of the execute_pipeline() function from the last deliverable. 
+ *  replica of the execute_pipeline() function from the last deliverable.
  *  The only thing different is that you will be using the cli_sock as the
  *  main file descriptor on the first executable in the pipeline for STDIN,
  *  and the cli_sock for the file descriptor for STDOUT, and STDERR for the
- *  last executable in the pipeline.  See picture below:  
- * 
- *      
+ *  last executable in the pipeline.  See picture below:
+ *
+ *
  *┌───────────┐                                                    ┌───────────┐
  *│ cli_sock  │                                                    │ cli_sock  │
  *└─────┬─────┘                                                    └────▲──▲───┘
- *      │   ┌──────────────┐     ┌──────────────┐     ┌──────────────┐  │  │    
- *      │   │   Process 1  │     │   Process 2  │     │   Process N  │  │  │    
- *      │   │              │     │              │     │              │  │  │    
- *      └───▶stdin   stdout├─┬──▶│stdin   stdout├─┬──▶│stdin   stdout├──┘  │    
- *          │              │ │   │              │ │   │              │     │    
- *          │        stderr├─┘   │        stderr├─┘   │        stderr├─────┘    
- *          └──────────────┘     └──────────────┘     └──────────────┘   
+ *      │   ┌──────────────┐     ┌──────────────┐     ┌──────────────┐  │  │
+ *      │   │   Process 1  │     │   Process 2  │     │   Process N  │  │  │
+ *      │   │              │     │              │     │              │  │  │
+ *      └───▶stdin   stdout├─┬──▶│stdin   stdout├─┬──▶│stdin   stdout├──┘  │
+ *          │              │ │   │              │ │   │              │     │
+ *          │        stderr├─┘   │        stderr├─┘   │        stderr├─────┘
+ *          └──────────────┘     └──────────────┘     └──────────────┘
  *                                                      WEXITSTATUS()
  *                                                      of this last
  *                                                      process to get
  *                                                      the return code
- *                                                      for this function       
- * 
+ *                                                      for this function
+ *
  *  Returns:
- * 
+ *
  *      EXIT_CODE:  This function returns the exit code of the last command
  *                  executed in the pipeline.  If only one command is executed
  *                  that value is returned.  Remember, use the WEXITSTATUS()
  *                  macro that we discussed during our fork/exec lecture to
- *                  get this value. 
+ *                  get this value.
  */
-int rsh_execute_pipeline(int cli_sock, command_list_t *clist) {
-    int pipes[clist->num - 1][2];  // Array of pipes
+int rsh_execute_pipeline(int cli_sock, command_list_t *clist)
+{
+    int pipes[clist->num - 1][2]; // Array of pipes
     pid_t pids[clist->num];
-    int  pids_st[clist->num];         // Array to store process IDs
-    Built_In_Cmds bi_cmd;
+    int pids_st[clist->num]; // Array to store process IDs
     int exit_code;
 
     // Create all necessary pipes
-    for (int i = 0; i < clist->num - 1; i++) {
-        if (pipe(pipes[i]) == -1) {
+    for (int i = 0; i < clist->num - 1; i++)
+    {
+        if (pipe(pipes[i]) == -1)
+        {
             perror("pipe");
             exit(EXIT_FAILURE);
         }
     }
 
-    for (int i = 0; i < clist->num; i++) {
+    for (int i = 0; i < clist->num; i++)
+    {
         // TODO this is basically the same as the piped fork/exec assignment, except for where you connect the begin and end of the pipeline (hint: cli_sock)
-
-        // TODO HINT you can dup2(cli_sock with STDIN_FILENO, STDOUT_FILENO, etc.
-
+        pid_t pid = fork();
+        if (pid < 0)
+        {
+            perror("fork");
+            exit(EXIT_FAILURE);
+        }
+        if (pid == 0)
+        {
+            // TODO HINT you can dup2(cli_sock with STDIN_FILENO, STDOUT_FILENO, etc.
+            // First command: stdin comes from cli_sock
+            if (i == 0)
+            {
+                dup2(cli_sock, STDIN_FILENO);
+            }
+            else
+            {
+                dup2(pipes[i - 1][0], STDIN_FILENO);
+            }
+            // Last command: stdout and stderr go back to cli_sock
+            if (i == clist->num - 1)
+            {
+                dup2(cli_sock, STDOUT_FILENO);
+                dup2(cli_sock, STDERR_FILENO);
+            }
+            else
+            {
+                dup2(pipes[i][1], STDOUT_FILENO);
+            }
+            // Close all pipe fds in child
+            for (int j = 0; j < clist->num - 1; j++)
+            {
+                close(pipes[j][0]);
+                close(pipes[j][1]);
+            }
+            execvp(clist->commands[i].argv[0], clist->commands[i].argv);
+            perror("execvp");
+            exit(EXIT_FAILURE);
+        }
+        else
+        {
+            pids[i] = pid;
+        }
     }
 
-
     // Parent process: close all pipe ends
-    for (int i = 0; i < clist->num - 1; i++) {
+    for (int i = 0; i < clist->num - 1; i++)
+    {
         close(pipes[i][0]);
         close(pipes[i][1]);
     }
 
     // Wait for all children
-    for (int i = 0; i < clist->num; i++) {
+    for (int i = 0; i < clist->num; i++)
+    {
         waitpid(pids[i], &pids_st[i], 0);
     }
 
-    //by default get exit code of last process
-    //use this as the return value
+    // by default get exit code of last process
+    // use this as the return value
     exit_code = WEXITSTATUS(pids_st[clist->num - 1]);
-    for (int i = 0; i < clist->num; i++) {
-        //if any commands in the pipeline are EXIT_SC
-        //return that to enable the caller to react
+    for (int i = 0; i < clist->num; i++)
+    {
+        // if any commands in the pipeline are EXIT_SC
+        // return that to enable the caller to react
         if (WEXITSTATUS(pids_st[i]) == EXIT_SC)
             exit_code = EXIT_SC;
     }
@@ -402,32 +548,32 @@ int rsh_execute_pipeline(int cli_sock, command_list_t *clist) {
  **** TO SEE IF A COMMAND WAS BUILT IN OR NOT.  YOU CAN USE A DIFFERENT
  **** STRATEGY IF YOU WANT.  IF YOU CHOOSE TO DO SO PLEASE REMOVE THESE
  **** FUNCTIONS AND THE PROTOTYPES FROM rshlib.h
- **** 
+ ****
  */
 
 /*
  * rsh_match_command(const char *input)
  *      cli_socket:  The string command for a built-in command, e.g., dragon,
  *                   cd, exit-server
- *   
+ *
  *  This optional function accepts a command string as input and returns
  *  one of the enumerated values from the BuiltInCmds enum as output. For
  *  example:
- * 
+ *
  *      Input             Output
  *      exit              BI_CMD_EXIT
  *      dragon            BI_CMD_DRAGON
- * 
+ *
  *  This function is entirely optional to implement if you want to handle
- *  processing built-in commands differently in your implementation. 
- * 
+ *  processing built-in commands differently in your implementation.
+ *
  *  Returns:
- * 
+ *
  *      BI_CMD_*:   If the command is built-in returns one of the enumeration
  *                  options, for example "cd" returns BI_CMD_CD
- * 
+ *
  *      BI_NOT_BI:  If the command is not "built-in" the BI_NOT_BI value is
- *                  returned. 
+ *                  returned.
  */
 Built_In_Cmds rsh_match_command(const char *input)
 {
@@ -446,20 +592,20 @@ Built_In_Cmds rsh_match_command(const char *input)
 
 /*
  * rsh_built_in_cmd(cmd_buff_t *cmd)
- *      cmd:  The cmd_buff_t of the command, remember, this is the 
+ *      cmd:  The cmd_buff_t of the command, remember, this is the
  *            parsed version fo the command
- *   
+ *
  *  This optional function accepts a parsed cmd and then checks to see if
- *  the cmd is built in or not.  It calls rsh_match_command to see if the 
+ *  the cmd is built in or not.  It calls rsh_match_command to see if the
  *  cmd is built in or not.  Note that rsh_match_command returns BI_NOT_BI
  *  if the command is not built in. If the command is built in this function
- *  uses a switch statement to handle execution if appropriate.   
- * 
+ *  uses a switch statement to handle execution if appropriate.
+ *
  *  Again, using this function is entirely optional if you are using a different
- *  strategy to handle built-in commands.  
- * 
+ *  strategy to handle built-in commands.
+ *
  *  Returns:
- * 
+ *
  *      BI_NOT_BI:   Indicates that the cmd provided as input is not built
  *                   in so it should be sent to your fork/exec logic
  *      BI_EXECUTED: Indicates that this function handled the direct execution
@@ -472,9 +618,9 @@ Built_In_Cmds rsh_match_command(const char *input)
  *                   returns BI_CMD_STOP_SVR the caller of this function is
  *                   responsible for stopping the server.  If BI_CMD_EXIT is returned
  *                   the caller is responsible for closing the client connection.
- * 
+ *
  *   AGAIN - THIS IS TOTALLY OPTIONAL IF YOU HAVE OR WANT TO HANDLE BUILT-IN
- *   COMMANDS DIFFERENTLY. 
+ *   COMMANDS DIFFERENTLY.
  */
 Built_In_Cmds rsh_built_in_cmd(cmd_buff_t *cmd)
 {
@@ -496,6 +642,4 @@ Built_In_Cmds rsh_built_in_cmd(cmd_buff_t *cmd)
         chdir(cmd->argv[1]);
         return BI_EXECUTED;
     default:
-        return BI_NOT_BI;
-    }
-}
+        return BI_NOT_B
