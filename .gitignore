@@ -47,6 +47,7 @@ a.out
 vgcore.*
 
 # Local files
-assignments/*
-assignments
+SysProg-Class/*
+SysProg-Class
 vmpath.txt
+
