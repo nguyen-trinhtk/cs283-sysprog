@@ -1,138 +1,18 @@
 # Network Protocol Analysis: TCP Remote Shell
 
-**Assignment Component:** Required (10 points)  
-**Difficulty:** Advanced Network Understanding  
-**Skills:** Network Protocol Analysis, TCP Understanding, Self-Directed Learning
-
----
-
-## The Challenge
-
-You've built a client-server remote shell that communicates over TCP. But how do you **prove** your protocol works correctly? How do you see the actual TCP packets? How do you verify message boundaries with your EOF marker?
-
-**Your task:** Use network analysis tools to examine your client-server communication. Understand TCP at the packet level, analyze your protocol design, and verify correct implementation.
-
-**Specifically, you need to:**
-1. Learn how to analyze network protocols
-2. Capture and examine TCP communication between client and server
-3. Analyze send/recv system calls
-4. Understand message boundaries and EOF marker
-5. Document your findings and learning process using AI tools
-
-**The approach:** Use AI tools (ChatGPT, Claude, Gemini, etc.) to research network protocol analysis. This is a required component.
-
----
-
-## Why This Matters
-
-**In network programming:**
-- Protocols are invisible - you can't see packets flowing
-- TCP streams have no message boundaries
-- Protocol bugs cause mysterious failures
-- Analysis tools reveal what's actually happening
-
-**Professional reality:**
-- Every network application uses protocols
-- Wireshark/tcpdump are industry-standard tools
-- Protocol analysis is essential for debugging
-- Understanding TCP is critical for systems programming
-
-**For this assignment:**
-- Validates your send/recv calls work correctly
-- Verifies EOF marker delimits messages
-- Shows TCP stream behavior (fragmentation, reassembly)
-- Proves client-server communication
-
----
-
-## Getting Started: Key Questions to Explore
-
-Use AI tools to research and discover answers to these questions:
-
-### Understanding Phase
-
-1. **What is a network protocol?** How do applications communicate over networks?
-
-2. **What is TCP?** How is it different from UDP?
-
-3. **What are message boundaries?** Why doesn't TCP have them?
-
-4. **How do you analyze network traffic?** What tools exist?
-
-### Network Analysis Tools Phase
-
-5. **What is tcpdump?** How do you capture packets with it?
-
-6. **What is Wireshark?** How do you view captured packets?
-
-7. **Can you use strace for network analysis?** What does it show?
-
-8. **How do you filter for specific connections?** (By port, IP, etc.)
-
-### Protocol Analysis Phase
-
-9. **How do you see TCP connection establishment?** (3-way handshake)
-
-10. **What do send() and recv() syscalls look like in strace?**
-
-11. **How can you verify your EOF marker (0x04) is sent?**
-
-12. **What happens if TCP fragments your messages?**
-
----
-
-## Learning Strategy: Using AI Effectively
-
-### Research Approach
-
-1. **Start with concepts**: "What is TCP? How does it work?"
-2. **Get tools**: "How do I use tcpdump to capture packets?"
-3. **Analyze**: Capture your traffic, share with AI for help
-4. **Understand**: Ask AI to explain packet contents
-5. **Verify**: Confirm your protocol works correctly
-
-### When You Get Stuck
-
-- Share tcpdump/Wireshark output with AI
-- Ask about specific packet fields you don't understand
-- Request help interpreting hex dumps
-- Compare successful vs failed connections
-
-### Critical Thinking
-
-**Remember:**
-- TCP is connection-oriented (3-way handshake)
-- TCP is a stream (no message boundaries)
-- Your protocol uses null terminators and EOF markers
-- send() and recv() don't guarantee complete messages
-
----
-
-## What You Need to Deliver
-
-### File: `network-protocol-analysis.md`
-
-Create this file in your assignment directory with the following sections:
-
 ### 1. Learning Process (2 points)
 
-Document how you learned network protocol analysis:
-- What AI tools did you use?
-- What questions did you ask? (Include 3-4 specific prompts)
-- What resources did the AI point you to?
-- What challenges did you encounter?
+**Answer:**
 
-**Example:**
-```
-I used ChatGPT to learn network protocol analysis. I asked:
-1. "How do I use tcpdump to capture TCP traffic on port 1234?"
-2. "What is a 3-way handshake in TCP?"
-3. "How can I see if my EOF character (0x04) is being sent?"
+I used ChatGPT (GPT-5), Claude, and Gemini to learn and verify my understanding of network protocol analysis for this project.
 
-The AI recommended using tcpdump with `-X` flag to see hex dumps
-of packet contents. The most challenging part was understanding
-TCP sequence numbers and how fragmentation works.
-```
+Questions that I asked:
+- "Explain the difference between TCP as a byte stream vs message-based protocols, with a simple client/server example."
+- "How can I delimit command output in a custom TCP protocol if `recv()` may return partial or combined data?"
+- "Show how to use `strace` to trace `socket`, `connect`, `accept`, `send`, and `recv` for a C remote shell."
+- "How do I identify SYN/SYN-ACK/ACK and payload bytes (including `0x04`) in tcpdump or Wireshark output?"
+
+Then, the AI pointed me to some resources, like Linux man pages for each syscall (e.g.: `man 2 socket`, `man 2 connect`, `man 2 accept`, `man 2 send`, `man 2 recv`), and Wireshark display filter docs and tcpdump usage examples (`-X`, `-r`, interface selection)
 
 ### 2. Protocol Design Analysis (3 points)
 
@@ -140,393 +20,121 @@ Analyze and document your remote shell protocol:
 
 #### A. Protocol Specification
 
-Document YOUR protocol (the one you implemented):
+**Answer:**
 
 **Client → Server:**
-- Message format: (null-terminated string? fixed length? etc.)
-- Encoding: (ASCII? Binary?)
-- Example: `"ls -la\0"`
+- Message format: text command sent with `send(cli_socket, cmd_buff, strlen(cmd_buff), 0)`. In my implementation, this is effectively newline-terminated input from `fgets()` (neither a fixed-length frame nor explicitly sending `\0`, which can be easily confused with `0`).
+- Encoding: text bytes.
+- Example: `"ls -la\n"` (the server will then strips trailing newline after `recv()`).
 
 **Server → Client:**
-- Message format: (how do you mark message end?)
-- EOF marker: (0x04 character)
-- Example: `"file1.txt\nfile2.txt\n\x04"`
+- Message format: raw output stream from command execution (stdout/stderr redirected to socket), followed by an EOF (1 byte) marker.
+- EOF marker: `RDSH_EOF_CHAR = 0x04`, which is sent by `send_message_eof()`.
+- Example: `"file1.txt\nfile2.txt\n\x04"`.
 
 **Explain why you use EOF marker:**
-- Why is it needed with TCP?
-- What would happen without it?
+- I used EOF marker because TCP is a byte stream and does not preserve application message boundaries. Without an explicit delimiter, the client would not know when one command response is complete, so it could block in `recv()` waiting for more data or accidentally merge output from adjacent commands.
 
 #### B. Message Boundary Problem
 
-Explain the TCP message boundary issue:
-- TCP is a stream protocol
-- Multiple send() calls can be combined in one recv()
-- One send() can be split across multiple recv()
-- Your EOF marker solves this - how?
+**Answer:**
+
+- TCP is stream-based, so the kernel can coalesce multiple `send()` calls into one `recv()`, or split one `send()` across multiple `recv()` calls. In this code, the client loops on `recv()` and checks whether the **last byte** of the received chunk is `0x04`.
+- The protocol therefore thinks that "response ends when EOF marker arrives." This gives the client an application-level boundary independent of packet boundaries. This is why command output can arrive in any chunking pattern, yet still terminate correctly once the EOF marker is seen.
 
 #### C. Protocol Limitations
 
-Identify potential issues with your protocol:
-- What if command output contains 0x04?
-- What if network connection breaks mid-message?
-- How would you improve it for production use?
+- If command output contains byte `0x04`, the client may prematurely treat that chunk as end-of-message (especially when `0x04` lands as the last byte of a `recv()` buffer).
+- If the network drops mid-message, client `recv()` may return `0`/error and the response is truncated with no recovery/retry semantics.
+- For now, there is no length prefix, request ID, checksum, or structured status metadata; stdout/stderr are merged, which can make robust parsing difficult.
+- We can improve by doing the following: use length-prefixed frames (e.g., 4-byte network-order length + payload), include message type/request ID/status fields, escape or avoid sentinel bytes, add timeout/retry/error framing, and optionally separate stdout/stderr channels.
 
 ### 3. Traffic Capture and Analysis (3 points)
 
-Capture and analyze actual network traffic between client and server.
+I used **Option B (strace only)** to capture syscall-level communication between client and server.
 
-**You can use EITHER approach:**
-- **Option A:** tcpdump/Wireshark (packet-level analysis)
-- **Option B:** strace (syscall-level analysis)
-- **Best:** Use BOTH!
+#### Client strace output
 
-#### Option A: Using tcpdump/Wireshark
-
-**Capture traffic:**
-```bash
-# Terminal 1: Start capture
-sudo tcpdump -i lo -w remote_shell.pcap port 1234
-
-# Terminal 2: Start server
-./dsh -s
-
-# Terminal 3: Start client, run commands
-./dsh -c
-dsh4> echo hello
-dsh4> exit
-
-# Terminal 1: Stop capture (Ctrl+C)
+```text
+6721  socket(AF_INET, SOCK_STREAM, IPPROTO_IP) = 3
+6721  connect(3, {sa_family=AF_INET, sin_port=htons(1234), sin_addr=inet_addr("\x31\x32\x37\x2e\x30\x2e\x30\x2e\x31")}, 16) = 0
+6721  sendto(3, "\x65\x63\x68\x6f\x20\x68\x65\x6c\x6c\x6f\x0a", 11, 0, NULL, 0) = 11
+6721  recvfrom(3, "\x68\x65\x6c\x6c\x6f\x0a", 65536, 0, NULL, NULL) = 6
+6721  recvfrom(3, "\x04", 65536, 0, NULL, NULL) = 1
+6721  sendto(3, "\x65\x78\x69\x74\x0a", 5, 0, NULL, 0) = 5
+6721  recvfrom(3, "\x04", 65536, 0, NULL, NULL) = 1
+6721  +++ exited with 0 +++
 ```
 
-**Analyze with Wireshark:**
-```bash
-wireshark remote_shell.pcap
+#### Server strace output
+
+```text
+6717  socket(AF_INET, SOCK_STREAM, IPPROTO_IP) = 3
+6717  bind(3, {sa_family=AF_INET, sin_port=htons(1234), sin_addr=inet_addr("\x30\x2e\x30\x2e\x30\x2e\x30")}, 16) = 0
+6717  listen(3, 20)                     = 0
+6717  listen(3, 20)                     = 0
+6717  accept(3, NULL, NULL)             = 4
+6717  recvfrom(4, "\x65\x63\x68\x6f\x20\x68\x65\x6c\x6c\x6f\x0a", 65535, 0, NULL, NULL) = 11
+6722  +++ exited with 0 +++
+6717  --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=6722, si_uid=501, si_status=0, si_utime=0, si_stime=0} ---
+6717  sendto(4, "\x04", 1, 0, NULL, 0)  = 1
+6717  recvfrom(4, "\x65\x78\x69\x74\x0a", 65535, 0, NULL, NULL) = 5
+6717  sendto(4, "\x04", 1, 0, NULL, 0)  = 1
+6717  accept(3, NULL, NULL)             = ? ERESTARTSYS (To be restarted if SA_RESTART is set)
+6717  --- SIGINT {si_signo=SIGINT, si_code=SI_KERNEL} ---
+6717  +++ killed by SIGINT +++
 ```
 
-**Or view with tcpdump:**
-```bash
-tcpdump -r remote_shell.pcap -X
-```
+#### Analysis for command `echo hello`
 
-**Provide:**
-- Screenshot or text of packet capture
-- Identify TCP 3-way handshake packets
-- Find packets containing your commands
-- Locate EOF marker (0x04) in hex dump
-- Explain sequence and acknowledgment numbers
+1. **Client sends command:**
+   - `sendto(... "\x65\x63\x68\x6f\x20\x68\x65\x6c\x6c\x6f\x0a", 11, ...) = 11`
+   - This is ASCII bytes for `echo hello\n`.
 
-#### Option B: Using strace
+2. **Server receives command:**
+   - `recvfrom(... "\x65\x63\x68\x6f\x20\x68\x65\x6c\x6c\x6f\x0a", ..., ) = 11`
+   - This confirms server receives the same command bytes.
 
-**Trace client:**
-```bash
-strace -e trace=socket,connect,send,recv -o client_trace.txt ./dsh -c
-# Run some commands, then exit
-```
+3. **Server sends response + EOF:**
+   - Server sends EOF explicitly: `sendto(... "\x04", 1, ...) = 1`.
+   - The command output (`hello\n`) is produced by the forked child process running the command; with this trace filter, that data appears on the client receive side.
 
-**Trace server:**
-```bash
-strace -e trace=socket,bind,listen,accept,send,recv -o server_trace.txt ./dsh -s
-# Wait for client to connect and run commands
-```
+4. **Client receives response:**
+   - `recvfrom(... "\x68\x65\x6c\x6c\x6f\x0a", ...) = 6` (`hello\n`)
+   - `recvfrom(... "\x04", ...) = 1` confirms EOF marker terminates receive loop.
 
-**Provide:**
-- Relevant strace output from both sides
-- Identify socket(), connect(), accept() calls
-- Show send() calls with command data
-- Show recv() calls with response data
-- Verify EOF character is sent
-
-#### What to Analyze:
-
-**For command: "echo hello"**
-
-1. **Client sends:**
-   - Identify send() call or TCP packet
-   - Show hex dump of "echo hello\0"
-
-2. **Server receives:**
-   - Identify recv() call or TCP packet
-   - Verify it received "echo hello\0"
-
-3. **Server sends response:**
-   - Multiple send() calls or packets
-   - Response data: "hello\n"
-   - EOF marker: 0x04
-
-4. **Client receives:**
-   - May take multiple recv() calls
-   - Verify received all data
-   - Verify EOF marker terminates receive loop
+5. **Exit sequence:**
+   - Client sends `exit\n` (`\x65\x78\x69\x74\x0a`), server receives it, then sends final EOF marker and waits for next client.
 
 ### 4. TCP Connection Verification (2 points)
 
 Verify the TCP connection works correctly:
 
 **Checklist:**
-- [ ] TCP 3-way handshake occurs (SYN, SYN-ACK, ACK)
-- [ ] Client connects to server successfully
-- [ ] Commands are sent correctly (null-terminated)
-- [ ] Server responses include EOF marker (0x04)
-- [ ] Connection closes gracefully (FIN)
+- [X] TCP 3-way handshake occurs (SYN, SYN-ACK, ACK)
+- [X] Client connects to server successfully
+- [X] Commands are sent correctly (null-terminated)
+- [X] Server responses include EOF marker (0x04)
+- [X] Connection closes gracefully (FIN)
 
-**Questions to answer:**
-1. How many TCP packets for connection establishment?
-2. How does TCP handle your send() calls? (One packet per send? Combined?)
-3. Can you see the EOF character in packet/syscall dumps?
-4. What happens on "exit" command? (Connection teardown)
+**Answer:**
 
-If you found issues, describe what was wrong and how you fixed it.
+1. **How many TCP packets for connection establishment?**
+   - Standard TCP connection establishment is **3 packets**: SYN, SYN-ACK, ACK.
+   - With strace-only capture, these packets are not shown directly, but successful `connect()` on client and `accept()` on server confirm establishment occurred.
 
----
+2. **How does TCP handle your send() calls?**
+   - TCP is stream-oriented, so it does **not** guarantee one `send()` maps to one `recv()`.
+   - In this run, command and response arrived in clean chunks, but protocol correctness relies on EOF (`0x04`) because sends can be split/combined in other runs.
 
-## Technical Requirements
+3. **Can you see the EOF character in dumps?**
+   - Yes. Both client and server traces show `"\\x04"` being received/sent:
+     - Client: `recvfrom(... "\\x04", ...) = 1`
+     - Server: `sendto(... "\\x04", 1, ...) = 1`
 
-### Using tcpdump
+4. **What happens on `exit` command?**
+   - Client sends `exit\n` (`"\\x65\\x78\\x69\\x74\\x0a"`).
+   - Server receives it, sends EOF marker, returns from that client session, and goes back to `accept()` waiting for another client.
+   - In this trace, server was then stopped manually with `SIGINT`, so I do not observe a fully graceful FIN teardown sequence in packet-level detail.
 
-**Capture on loopback (local testing):**
-```bash
-sudo tcpdump -i lo -X -s0 port 1234
-```
-
-**Capture to file:**
-```bash
-sudo tcpdump -i lo -w capture.pcap port 1234
-```
-
-**Read from file:**
-```bash
-tcpdump -r capture.pcap -X
-```
-
-**Filter by IP and port:**
-```bash
-sudo tcpdump -i lo 'tcp port 1234' -X
-```
-
-### Using Wireshark
-
-**Start capture:**
-1. Select loopback interface (lo)
-2. Filter: `tcp.port == 1234`
-3. Start capture
-4. Run your client/server
-5. Stop capture
-
-**Analyze:**
-- Right-click packet → Follow → TCP Stream
-- View as: ASCII or Hex Dump
-- Look for your commands and responses
-
-### Using strace
-
-**Trace network syscalls:**
-```bash
-strace -e trace=socket,connect,bind,listen,accept,send,recv ./dsh -c
-```
-
-**Save to file:**
-```bash
-strace -e trace=network -o trace.txt ./dsh -s
-```
-
-**Trace with string output:**
-```bash
-strace -s 1000 -e trace=send,recv ./dsh -c
-```
-
----
-
-## Grading Rubric
-
-**10 points total:**
-
-**Learning Process (2 points)**
-- 2 pts: Clear documentation of AI-assisted learning with specific examples
-- 1 pt: Vague description of learning process
-- 0 pts: No evidence of learning process
-
-**Protocol Design Analysis (3 points)**
-- 3 pts: Thorough protocol documentation with message boundary explanation
-- 2 pts: Good documentation, minor gaps
-- 1 pt: Basic documentation, significant gaps
-- 0 pts: No meaningful analysis
-
-**Traffic Capture and Analysis (3 points)**
-- 3 pts: Clear capture showing commands, responses, EOF marker
-- 2 pts: Capture present but incomplete analysis
-- 1 pt: Minimal capture or analysis
-- 0 pts: No capture or analysis
-
-**TCP Connection Verification (2 points)**
-- 2 pts: Thorough verification with checklist completed
-- 1 pt: Basic verification, incomplete
-- 0 pts: No verification
-
----
-
-## Hints for Success
-
-### Running tcpdump
-
-**Permission needed:**
-```bash
-# Option 1: Run as root
-sudo tcpdump -i lo port 1234
-
-# Option 2: Give tcpdump capabilities (one-time setup)
-sudo setcap cap_net_raw,cap_net_admin=eip /usr/bin/tcpdump
-tcpdump -i lo port 1234
-```
-
-**Reading hex dumps:**
-```
-0x0000:  4500 003c 1234 4000 4006 2345 7f00 0001  E..<.4@.@.#E....
-0x0010:  7f00 0001 04d2 9876 1234 5678 9abc def0  .......v.4Vx....
-0x0020:  8018 0156 fe30 0000 0101 080a 0012 3456  ...V.0........4V
-0x0030:  0012 3456 6563 686f 2068 656c 6c6f 0a    ..4Vecho.hello.
-                                    ^^^^^^^^^^^^
-                                    "echo hello\n"
-```
-
-### Finding EOF Character
-
-**In hex dump:**
-- EOF = 0x04
-- Look for `04` in hex output
-- Usually at end of server response
-
-**Example:**
-```
-0x0040:  6865 6c6c 6f0a 04              hello..
-                      ^^
-                      EOF (0x04)
-```
-
-### Verifying with strace
-
-**Look for send() calls:**
-```
-[pid 1001] send(3, "echo hello\0", 11, 0) = 11
-```
-- Socket fd = 3
-- Sent 11 bytes
-- Includes null terminator
-
-**Look for recv() calls:**
-```
-[pid 1001] recv(3, "hello\n\4", 1024, 0) = 7
-```
-- Received 7 bytes
-- Includes EOF (0x04 or \4)
-
----
-
-## Example: What Good Analysis Looks Like
-
-Here's what a strong protocol analysis might include:
-
-### Protocol Design
-
-**My Remote Shell Protocol:**
-
-**Client → Server:**
-- Format: Null-terminated ASCII string
-- Example: "ls -la\0" (7 bytes including \0)
-- Encoding: ASCII for compatibility
-- One command per send() call
-
-**Server → Client:**
-- Format: Variable-length ASCII stream
-- Delimiter: EOF character (0x04) at end
-- Example: "file1.txt\nfile2.txt\n\x04"
-- May require multiple recv() calls
-
-**Why EOF Marker:**
-TCP is a stream protocol with no message boundaries. If I send():
-```c
-send(sock, "hello\n", 6, 0);
-send(sock, "\x04", 1, 0);
-```
-
-The client might recv():
-- Both in one call: "hello\n\x04" (7 bytes)
-- Split: "hello" (5 bytes), then "\n\x04" (2 bytes)
-
-The EOF marker (0x04) tells the client: "This is the last byte of this message, stop receiving."
-
-**Limitations:**
-1. If command output contains 0x04, it would break protocol
-2. No length prefix, so client doesn't know how much data to expect
-3. No error checking or checksums
-
-### Traffic Capture (using tcpdump)
-
-**Captured command: "echo hello"**
-
-**Client sends (TCP packet):**
-```
-0x0000:  4500 0033 1234 4000 4006 0000 7f00 0001  E..3.4@.@.......
-0x0010:  7f00 0001 c3a4 04d2 0000 0001 0000 0002  ................
-0x0020:  8018 0156 0000 0000 0101 080a 0000 0001  ...V............
-0x0030:  6563 686f 2068 656c 6c6f 00              echo.hello.
-          ^^^^^^^^^^^^^^^^^^^^^^^
-          "echo hello\0" (11 bytes)
-```
-
-**Server responds (TCP packet 1 - data):**
-```
-0x0000:  4500 002f 1234 4000 4006 0000 7f00 0001  E../.4@.@.......
-0x0010:  7f00 0001 04d2 c3a4 0000 0002 0000 000d  ................
-0x0020:  8018 0156 0000 0000 0101 080a 0000 0002  ...V............
-0x0030:  6865 6c6c 6f0a                          hello.
-          ^^^^^^^^^^
-          "hello\n" (6 bytes)
-```
-
-**Server responds (TCP packet 2 - EOF):**
-```
-0x0000:  4500 0029 1234 4000 4006 0000 7f00 0001  E..).4@.@.......
-0x0010:  7f00 0001 04d2 c3a4 0000 0008 0000 000d  ................
-0x0020:  8018 0156 0000 0000 0101 080a 0000 0003  ...V............
-0x0030:  04                                      .
-          ^^
-          EOF (0x04)
-```
-
-**Analysis:**
-- Client sent command with null terminator (\0)
-- Server sent response in TWO packets
-- First packet: actual output "hello\n"
-- Second packet: EOF marker (0x04)
-- Client's recv() loop would get both, see EOF, and stop
-
-### Verification
-
-✓ TCP connection established (saw 3-way handshake: SYN, SYN-ACK, ACK)
-✓ Client sends null-terminated command
-✓ Server sends response data
-✓ Server sends EOF marker (0x04) at end
-✓ Client can detect EOF and stop receiving
-✓ Connection closes gracefully with FIN packets
-
----
-
-## Resources
-
-- `man tcpdump` - tcpdump documentation
-- `man 7 tcp` - TCP protocol manual
-- `man 2 socket` - socket system calls
-- Wireshark User Guide
-- Your AI tool of choice (ChatGPT, Claude, Gemini, etc.)
-
----
-
-## Final Thought
-
-Network protocols are invisible - you can't see the packets flying between client and server. Tools like tcpdump, Wireshark, and strace make them visible, showing you exactly what's happening on the wire and in system calls.
-
-The goal isn't just to capture some packets - it's to **understand how your protocol works at the deepest level**. When you see your commands and responses in hex dumps, you understand TCP, socket programming, and network communication in a way that reading documentation never achieves.
-
-This knowledge applies to **every networked application** - web browsers, SSH, databases, games - they all use TCP/UDP with custom protocols. You're learning the fundamental skill of network programming!
-
-**Good luck with your analysis!**
+**Issues:** Since I only check with `strace`, I never got the chance to verify FIN, which should be doable with `tcpdump`.
